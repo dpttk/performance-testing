@@ -1,0 +1,11 @@
+# Optional extra CRI runtimes appended by scripts/configure-containerd.sh.
+# The stock "runc" handler is patched in-place; it is not redefined here.
+
+[plugins.'io.containerd.cri.v1.runtime'.containerd.runtimes.runc-hardened]
+  runtime_type = "io.containerd.runc.v2"
+  [plugins.'io.containerd.cri.v1.runtime'.containerd.runtimes.runc-hardened.options]
+    BinaryName = "/usr/local/sbin/runc-hardened"
+    SystemdCgroup = true
+
+[plugins.'io.containerd.cri.v1.runtime'.containerd.runtimes.runsc]
+  runtime_type = "io.containerd.runsc.v1"

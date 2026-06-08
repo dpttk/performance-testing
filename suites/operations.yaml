@@ -1,0 +1,6 @@
+cri: ["containerd"]
+oci: ["runc", "runc-hardened", "runsc"]
+filter:
+  - operations
+runs: 20
+output: operations.json

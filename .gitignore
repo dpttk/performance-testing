@@ -1,0 +1,19 @@
+# Local configuration overrides
+config.env
+.scan-tools
+
+# Build and install artefacts
+/build/
+/vendor/touchstone/
+/third_party/
+
+# Benchmark output (keep the directory via .gitkeep)
+/results/*
+!/results/.gitkeep
+
+# Generated scan bundles (contain exported rootfs trees + profiles)
+/bundles/scanned/
+
+# Host-specific containerd backups
+/config/containerd.config.toml.bak
+/config/containerd.config.toml.pristine

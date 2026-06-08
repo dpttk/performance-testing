@@ -1,0 +1,6 @@
+cri: ["containerd"]
+oci: ["runc", "runc-hardened", "runsc"]
+filter:
+  - performance
+runs: 10
+output: performance.json
