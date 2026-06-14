@@ -1,13 +1,11 @@
 #!/usr/bin/env bash
 # Prepare a fresh benchmark host for runtime performance evaluation.
 #
-# Installs host dependencies, Go, containerd, gVisor, builds stock and hardened
-# runc binaries, registers containerd runtime handlers, and optionally builds
-# Touchstone. Does not run benchmarks.
+# Installs host dependencies, Go, containerd, gVisor, and stock/hardened runc
+# binaries for the enforced-first benchmark pipeline.
 #
 # Usage:
 #   sudo ./scripts/setup.sh
-#   sudo ./scripts/setup.sh --skip-touchstone
 
 set -euo pipefail
 
@@ -15,13 +13,11 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 # shellcheck source=scripts/lib/common.sh
 source "$SCRIPT_DIR/lib/common.sh"
 
-SKIP_TOUCHSTONE=0
 for arg in "$@"; do
     case "$arg" in
-        --skip-touchstone) SKIP_TOUCHSTONE=1 ;;
         -h|--help)
             cat <<'EOF'
-Usage: sudo ./scripts/setup.sh [--skip-touchstone]
+Usage: sudo ./scripts/setup.sh
 
 Installs dependencies and configures the benchmark host. Steps:
   1. Host packages (containerd, sysbench, build tools)
@@ -29,7 +25,7 @@ Installs dependencies and configures the benchmark host. Steps:
   3. Stock and hardened runc binaries
   4. gVisor (runsc)
   5. containerd (default config, no CRI patching required)
-  6. Touchstone (optional; use --skip-touchstone to omit)
+  6. Docker + scan toolchain + seccomp hook
   7. Pull benchmark container images
 
 Copy config.env.example to config.env before running if you need non-default paths.
@@ -73,16 +69,6 @@ apt-get install -y -qq \
 
 "$SCRIPT_DIR/pull-images.sh"
 
-if [[ "$SKIP_TOUCHSTONE" -eq 0 ]]; then
-    if "$SCRIPT_DIR/install-touchstone.sh"; then
-        info "Touchstone installed at $TOUCHSTONE_BIN"
-    else
-        warn "Touchstone build failed (expected on modern hosts). Fallback benchmarks are the supported path."
-    fi
-else
-    info "Skipping Touchstone installation (--skip-touchstone)."
-fi
-
 info ""
 info "Setup complete."
 info "  Stock runc     : $RUNC_STOCK_BIN"
@@ -93,6 +79,4 @@ info "  Results dir    : $RESULTS_DIR"
 info ""
 info "Next steps:"
 info "  1. Optional: copy config.env.example to config.env and adjust paths."
-info "  2. Optional: set HARDENED_BUNDLE_DIR to a scanned OCI bundle for enforcement-mode tests."
-info "  3. Run: sudo ./scripts/verify.sh"
-info "  4. Run: sudo ./scripts/benchmark.sh"
+info "  2. Run: sudo ./scripts/run.sh"

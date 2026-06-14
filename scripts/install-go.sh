@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Install or refresh the Go toolchain used to build runc and Touchstone.
+# Install or refresh the Go toolchain used to build runtime binaries.
 
 set -euo pipefail
 

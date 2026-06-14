@@ -11,14 +11,12 @@ import os
 import sys
 import csv
 
-RUNTIME_ORDER = ["stock", "hardened", "hardened_enforced", "gvisor", "docker", "kata"]
+RUNTIME_ORDER = ["stock", "hardened_enforced", "gvisor", "docker"]
 RUNTIME_LABEL = {
     "stock": "stock runc (ctr)",
-    "hardened": "hardened raw (ctr)",
     "hardened_enforced": "hardened enforced",
     "gvisor": "gVisor",
     "docker": "Docker default",
-    "kata": "Kata",
 }
 
 # metric file -> (title, unit, direction) ; direction: 'low' or 'high' better
@@ -26,8 +24,6 @@ SCALAR_METRICS = [
     ("latency.json", "Startup latency", "ms", "low"),
     ("sysbench-cpu.json", "CPU (sysbench)", "events/s", "high"),
     ("sysbench-mem.json", "Memory throughput (sysbench)", "MiB/s", "high"),
-    ("disk-write.json", "Disk write (dd fsync)", "MB/s", "high"),
-    ("disk-read.json", "Disk read (cached)", "MB/s", "high"),
     ("network.json", "Network (iperf3 loopback)", "Gbit/s", "high"),
     ("redis-set.json", "redis-benchmark SET", "req/s", "high"),
     ("redis-get.json", "redis-benchmark GET", "req/s", "high"),
@@ -113,28 +109,6 @@ def main():
                 plot_data.setdefault(title, {})[r] = median
         md.append("")
 
-    # ---- Density ----
-    dens = load(d, "density.json")
-    if dens and "results" in dens:
-        md.append("\n### Container density (parallel start)\n")
-        # collect sizes
-        sizes = set()
-        for r, v in dens["results"].items():
-            if isinstance(v, dict):
-                sizes.update(v.keys())
-        sizes = sorted(sizes, key=lambda x: int(x))
-        runtimes = order_runtimes(dens["results"].keys())
-        md.append("| Runtime | " + " | ".join(f"{s} (ms / MiB-per-ctr)" for s in sizes) + " |")
-        md.append("|---|" + "|".join(["---"] * len(sizes)) + "|")
-        for r in runtimes:
-            v = dens["results"].get(r, {})
-            cells = []
-            for s in sizes:
-                e = v.get(s, {}) if isinstance(v, dict) else {}
-                cells.append(f"{fmt(e.get('wall_ms'))} / {fmt(e.get('mem_per_container_mib'))}")
-            md.append(f"| {RUNTIME_LABEL.get(r, r)} | " + " | ".join(cells) + " |")
-        md.append("")
-
     # ---- Enforcement overhead ----
     enf = load(d, "enforcement.json")
     if enf:
@@ -148,37 +122,6 @@ def main():
         en = enf.get("results", {}).get("enforced", {})
         md.append(f"- raw median: {fmt(raw.get('median'))} ms; enforced median: {fmt(en.get('median'))} ms")
         md.append(f"- **Steady-state enforcement overhead: {fmt(enf.get('enforcement_overhead_pct_median'))}%**\n")
-
-    # ---- Attack surface ----
-    surf = load(d, "surface.json")
-    if surf and "results" in surf:
-        md.append("\n## Attack surface (effective in-container posture)\n")
-        md.append("| Runtime | capabilities | seccomp | NoNewPrivs | AppArmor | allowed syscalls |")
-        md.append("|---|---|---|---|---|---|")
-        for r in order_runtimes(surf["results"].keys()):
-            v = surf["results"][r]
-            md.append(f"| {RUNTIME_LABEL.get(r, r)} | {v.get('cap_count')} | "
-                      f"{v.get('seccomp_mode')} | {v.get('no_new_privs')} | "
-                      f"{v.get('apparmor_profile')} | {v.get('seccomp_allowed_syscalls', '—')} |")
-            plot_data.setdefault("Capabilities (count)", {})[r] = v.get("cap_count")
-        md.append("")
-
-    # ---- Attack matrix ----
-    atk = load(d, "attack-matrix.json")
-    if atk and "matrix" in atk:
-        md.append("\n## Post-RCE confinement matrix\n")
-        md.append("ALLOWED = attacker action succeeded (worse); blocked = stopped by runtime/profile.\n")
-        cols = order_runtimes(atk["matrix"].keys())
-        md.append("| Probe | " + " | ".join(RUNTIME_LABEL.get(c, c) for c in cols) + " |")
-        md.append("|---|" + "|".join(["---"] * len(cols)) + "|")
-        for p in atk["probes"]:
-            cells = [atk["matrix"][c].get(p, "?") for c in cols]
-            cells = ["**ALLOWED**" if x == "ALLOWED" else ("blocked" if x == "BLOCKED" else x) for x in cells]
-            md.append(f"| {p} | " + " | ".join(cells) + " |")
-        md.append("| **ALLOWED total** | " +
-                  " | ".join(str(atk.get("allowed_counts", {}).get(c, "?")) for c in cols) + " |")
-        md.append("")
-        plot_data["Post-RCE actions ALLOWED (lower=better)"] = atk.get("allowed_counts", {})
 
     # ---- Write CSV ----
     csv_path = os.path.join(d, "report.csv")

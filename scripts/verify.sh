@@ -4,8 +4,8 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-# shellcheck source=scripts/lib/common.sh
-source "$SCRIPT_DIR/lib/common.sh"
+# shellcheck source=scripts/lib/runtime.sh
+source "$SCRIPT_DIR/lib/runtime.sh"
 
 require_root
 
@@ -31,7 +31,7 @@ check "busybox image" busybox_present || FAIL=1
 check "docker engine" docker_cmd info || warn "docker not available (docker runtime + gVisor will be skipped)"
 
 # Benchmark + scan tooling (warn-only; metrics degrade gracefully when absent).
-for tool in fio iperf3 redis-benchmark python3; do
+for tool in iperf3 redis-benchmark python3; do
     command -v "$tool" >/dev/null 2>&1 && info "OK  tool $tool" || warn "missing tool $tool"
 done
 for tool in bpftool capable-bpfcc apparmor_parser; do
@@ -43,7 +43,7 @@ else
     warn "missing oci-seccomp-bpf-hook (seccomp profile generation disabled)"
 fi
 
-# Smoke-test every configured runtime through the runtime abstraction.
+# Smoke-test only baseline runtimes (enforced runtime is validated in run.sh profile flow).
 for alias in $RUNTIMES; do
     if ! runtime_available "$alias"; then
         warn "SKIP runtime '$alias' (not available on this host)"
@@ -56,23 +56,6 @@ for alias in $RUNTIMES; do
         FAIL=1
     fi
 done
-
-if [[ -x "$TOUCHSTONE_BIN" ]]; then
-    info "OK  Touchstone binary ($TOUCHSTONE_BIN)"
-else
-    warn "Touchstone not installed (fallback benchmarks still available)"
-fi
-
-if [[ -n "${HARDENED_BUNDLE_DIR:-}" ]]; then
-    if [[ -f "$HARDENED_BUNDLE_DIR/config.json" ]]; then
-        info "OK  hardened bundle at $HARDENED_BUNDLE_DIR"
-    else
-        warn "HARDENED_BUNDLE_DIR is set but config.json is missing"
-        FAIL=1
-    fi
-else
-    warn "HARDENED_BUNDLE_DIR unset — enforcement-mode bundle benchmarks will be skipped"
-fi
 
 if [[ "$FAIL" -ne 0 ]]; then
     error "Verification failed. Run sudo ./scripts/restore-containerd.sh then sudo ./scripts/install-containerd.sh"

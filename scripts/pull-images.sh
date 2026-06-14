@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Pull container images used by the fallback benchmarks.
+# Pull container images used by the enforced-first perf pipeline.
 
 set -euo pipefail
 
@@ -18,7 +18,6 @@ pull_one() {
 }
 
 pull_one "$BUSYBOX_IMAGE"
-pull_one "$NGINX_IMAGE"
 pull_one "$REDIS_IMAGE"
 
 for opt in "$SYSBENCH_IMAGE" "$IPERF_IMAGE"; do

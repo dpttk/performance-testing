@@ -27,59 +27,43 @@ fi
 : "${CTR_RUNTIME_STOCK:=$RUNC_STOCK_BIN}"
 : "${CTR_RUNTIME_HARDENED:=$RUNC_HARDENED_BIN}"
 : "${CTR_RUNTIME_GVISOR:=$RUNSC_BIN}"
-: "${TOUCHSTONE_BIN:=/usr/local/bin/touchstone}"
-: "${TOUCHSTONE_BUILD_DIR:=$BUILD_DIR/touchstone}"
 : "${BENCHMARK_RUNS:=10}"
 : "${STARTUP_ITERATIONS:=100}"
-: "${SCALABILITY_SIZES:=5 10 50}"
 : "${RESULTS_DIR:=$PERF_DIR/results}"
 : "${BUSYBOX_IMAGE:=docker.io/library/busybox:latest}"
-: "${NGINX_IMAGE:=docker.io/library/nginx:1.27-alpine}"
 : "${REDIS_IMAGE:=docker.io/library/redis:7-alpine}"
 : "${SYSBENCH_IMAGE:=docker.io/severalnines/sysbench:latest}"
 : "${GO_VERSION:=1.22.4}"
 
-# --- Docker / Kata ---
+# --- Docker ---
 : "${DOCKER_BIN:=/usr/bin/docker}"
 : "${DOCKER_REGISTER_EXTRA_RUNTIMES:=1}"
-: "${KATA_ENABLE:=0}"
-: "${KATA_RUNTIME:=io.containerd.kata.v2}"
 
 # --- Runtime set + statistical rigor ---
-: "${RUNTIMES:=stock hardened gvisor docker}"
+: "${RUNTIMES:=stock gvisor docker}"
 : "${WARMUP:=5}"
 : "${REPS:=30}"
-: "${DENSITY_SIZES:=5 10 25 50 75}"
 : "${PIN_CPU_GOVERNOR:=1}"
 : "${PIN_CPU_CORES:=}"
 
 # --- Workload tunables ---
-: "${FIO_SIZE:=512M}"
-: "${FIO_RUNTIME:=15}"
-: "${FIO_BS:=4k}"
-: "${FIO_IODEPTH:=16}"
 : "${IPERF_DURATION:=10}"
 : "${IPERF_PARALLEL:=1}"
-: "${WRK_DURATION:=15}"
-: "${WRK_THREADS:=2}"
-: "${WRK_CONNECTIONS:=50}"
 : "${REDIS_BENCH_REQUESTS:=100000}"
 : "${REDIS_BENCH_CLIENTS:=50}"
 : "${REDIS_BENCH_PIPELINE:=1}"
 
-# --- Scan / security ---
-: "${SCAN_RUNC_SRC:=}"
+# --- Enforced profile flow ---
 : "${SCAN_BUNDLES_DIR:=$PERF_DIR/bundles/scanned}"
 : "${SCAN_UID:=65532}"
 : "${SCAN_GID:=65532}"
-: "${PROBE_IMAGE:=docker.io/library/busybox:latest}"
-: "${VULN_APP_BUNDLE:=}"
+: "${PROFILE_NAME:=synthetic}"
+: "${PROFILE_IMAGE:=$BUSYBOX_IMAGE}"
+: "${PROFILE_COMMAND:=n=0; i=0; while [ \$i -lt 500 ]; do if cat /etc/passwd >/dev/null 2>&1; then n=\$((n+1)); fi; i=\$((i+1)); done; echo RESULT=\$n}"
 : "${GENERATE_PLOTS:=1}"
 
 # --- Image references without the registry prefix (docker CLI form) ---
-: "${WRK_IMAGE:=docker.io/williamyeh/wrk:latest}"
 : "${IPERF_IMAGE:=docker.io/networkstatic/iperf3:latest}"
-: "${FIO_IMAGE:=docker.io/clusterhq/fio:latest}"
 
 info()  { echo -e "\033[0;32m[+]\033[0m $*" >&2; }
 warn()  { echo -e "\033[0;33m[!]\033[0m $*" >&2; }
@@ -109,13 +93,12 @@ ctr_cmd() {
 
 # containerd 2.x ctr requires a shim runtime *type*, not a bare binary path.
 # Stock and hardened both use the runc.v2 shim and select their binary via
-# --runc-binary (see ctr_extra_args). gVisor uses its own runsc.v1 shim.
+# --runc-binary (see ctr_extra_args). gVisor uses runsc via Docker.
 ctr_runtime() {
     case "$1" in
         stock|default|runc|hardened|runc-hardened) echo "io.containerd.runc.v2" ;;
         gvisor|runsc) echo "io.containerd.runsc.v1" ;;
-        kata) echo "$KATA_RUNTIME" ;;
-        *) error "Unknown runtime alias: $1 (expected stock, hardened, gvisor, or kata)" ;;
+        *) error "Unknown runtime alias: $1 (expected stock, hardened, or gvisor)" ;;
     esac
 }
 
@@ -130,7 +113,7 @@ ctr_extra_args() {
     esac
 }
 
-# CRI handler names remain useful for Touchstone and documentation.
+# CRI handler names remain useful for documentation.
 runtime_handler() {
     case "$1" in
         stock|default|runc) echo "$RUNTIME_STOCK" ;;
@@ -149,10 +132,9 @@ runtime_handler() {
 #
 #   stock              ctr     + runc-stock (containerd default profiles)
 #   hardened           ctr     + dpttk/runc, raw (0-cap default, no profiles)
-#   gvisor             ctr     + runsc (userspace-kernel sandbox)
+#   gvisor             docker  + runsc (userspace-kernel sandbox)
 #   docker             docker  + runc (Docker default seccomp/AppArmor posture)
 #   hardened_enforced  bundle  + dpttk/runc with generated profiles applied
-#   kata               ctr     + kata-shim (deferred; requires /dev/kvm)
 # ---------------------------------------------------------------------------
 
 #
@@ -168,7 +150,6 @@ runtime_backend() {
     case "$1" in
         stock|hardened) echo "ctr" ;;
         docker|gvisor) echo "docker" ;;
-        kata) echo "kata" ;;
         hardened_enforced) echo "bundle" ;;
         *) error "Unknown runtime alias: $1" ;;
     esac
@@ -211,13 +192,8 @@ runtime_available() {
                 docker_cmd info --format '{{range $k,$v := .Runtimes}}{{$k}} {{end}}' 2>/dev/null | grep -qw runsc || return 1
             fi
             ;;
-        kata)
-            [[ "$KATA_ENABLE" == "1" ]] || return 1
-            [[ -e /dev/kvm ]] || return 1
-            command -v containerd-shim-kata-v2 >/dev/null 2>&1 || return 1
-            ;;
         bundle)
-            [[ -x "$RUNC_HARDENED_BIN" ]] || return 1
+            [[ -x "$RUNC_HARDENED_BIN" && -f "$SCAN_BUNDLES_DIR/$PROFILE_NAME/enforced/config.json" ]] || return 1
             ;;
     esac
     return 0
@@ -227,7 +203,7 @@ runtime_available() {
 run_ephemeral() {
     local alias="$1" name="$2" image="$3"; shift 3
     case "$(runtime_backend "$alias")" in
-        ctr|kata)
+        ctr)
             # shellcheck disable=SC2046
             ctr_cmd run --rm --runtime "$(ctr_runtime "$alias")" $(ctr_extra_args "$alias") "$image" "$name" "$@" >/dev/null 2>&1
             ;;
@@ -245,7 +221,7 @@ run_ephemeral() {
 run_capture() {
     local alias="$1" name="$2" image="$3"; shift 3
     case "$(runtime_backend "$alias")" in
-        ctr|kata)
+        ctr)
             # shellcheck disable=SC2046
             ctr_cmd run --rm --runtime "$(ctr_runtime "$alias")" $(ctr_extra_args "$alias") "$image" "$name" "$@" 2>&1
             ;;
@@ -261,7 +237,7 @@ run_capture() {
 run_detached() {
     local alias="$1" name="$2" image="$3"; shift 3
     case "$(runtime_backend "$alias")" in
-        ctr|kata)
+        ctr)
             # shellcheck disable=SC2046
             ctr_cmd run -d --runtime "$(ctr_runtime "$alias")" $(ctr_extra_args "$alias") "$image" "$name" "$@" >/dev/null 2>&1
             ;;
@@ -276,7 +252,7 @@ run_detached() {
 stop_container() {
     local alias="$1" name="$2"
     case "$(runtime_backend "$alias")" in
-        ctr|kata)
+        ctr)
             ctr_cmd task kill "$name" >/dev/null 2>&1 || true
             ctr_cmd task delete "$name" >/dev/null 2>&1 || true
             ctr_cmd containers delete "$name" >/dev/null 2>&1 || true
@@ -294,7 +270,6 @@ runtime_launcher() {
         hardened) echo "ctr+$CTR_RUNTIME_HARDENED" ;;
         gvisor) echo "docker(--runtime=runsc)" ;;
         docker) echo "docker(default)" ;;
-        kata) echo "ctr+$KATA_RUNTIME" ;;
         hardened_enforced) echo "$RUNC_HARDENED_BIN run --bundle" ;;
         *) echo "unknown" ;;
     esac

@@ -10,6 +10,8 @@ config.env
 # Benchmark output (keep the directory via .gitkeep)
 /results/*
 !/results/.gitkeep
+!/results/latest/
+!/results/latest/**
 
 # Generated scan bundles (contain exported rootfs trees + profiles)
 /bundles/scanned/

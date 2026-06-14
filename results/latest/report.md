@@ -1,0 +1,44 @@
+# Benchmark report
+
+Source: `results/latest`
+
+## Host
+
+```
+host=performance-testing
+date=2026-06-14T14:58:22+00:00
+kernel=6.8.0-124-generic
+arch=x86_64
+cpu_model=AMD EPYC-Genoa Processor
+cpu_count=4
+virt=kvm
+kvm_present=no
+mem_total=8130784 kB
+cgroup=cgroup2fs
+cpu_governor=n/a
+turbo_disabled=n/a
+os=Ubuntu 24.04.4 LTS
+containerd=containerd github.com/containerd/containerd/v2 2.2.1 
+docker=Docker version 29.1.3, build 29.1.3-0ubuntu3~24.04.2
+runc_stock=runc version 1.5.0-rc.1+dev
+runc_hardened=runc version 1.4.0-rc.1+dev
+runsc=runsc version release-20260601.0
+kata=missing
+runtimes_under_test=stock gvisor docker
+reps=8 warmup=2
+```
+
+## Performance metrics
+
+Values are medians over repeated samples; overhead is relative to `stock` (positive = slower/worse for latency, lower throughput shown as % of stock).
+
+
+## Enforcement-mode overhead
+
+- Workload: `synthetic`
+- One-time scan (profile generation) cost: **3443 ms**
+- Generated seccomp allowed syscalls: **56**
+- Functional preserved (raw == enforced output): **True**
+- raw median: 466.50 ms; enforced median: 500.00 ms
+- **Steady-state enforcement overhead: 7.18%**
+

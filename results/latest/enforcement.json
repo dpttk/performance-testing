@@ -1,0 +1,46 @@
+{
+  "metric": "enforcement_overhead",
+  "unit": "ms",
+  "workload": "synthetic",
+  "profile": {
+    "name": "synthetic",
+    "scan_ms": 3443,
+    "seccomp_default_action": "SCMP_ACT_ERRNO",
+    "seccomp_allowed_syscalls": 56,
+    "apparmor_profile": "runc_scan_scan_synthetic_147844"
+  },
+  "results": {
+    "raw": {
+      "count": 8,
+      "min": 462.0,
+      "median": 466.5,
+      "mean": 466.5,
+      "p95": 471.6,
+      "p99": 472.72,
+      "max": 473.0,
+      "stddev": 3.24
+    },
+    "enforced": {
+      "count": 8,
+      "min": 495.0,
+      "median": 500.0,
+      "mean": 500.875,
+      "p95": 509.2,
+      "p99": 511.44,
+      "max": 512.0,
+      "stddev": 5.254
+    }
+  },
+  "exit_counts": {
+    "raw_ok": 8,
+    "raw_fail": 0,
+    "enforced_ok": 8,
+    "enforced_fail": 0
+  },
+  "functional_check": {
+    "raw_output": "RESULT=500",
+    "enforced_output": "RESULT=500"
+  },
+  "functional_preserved": true,
+  "enforcement_overhead_pct_median": 7.18
+}

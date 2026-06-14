@@ -119,8 +119,8 @@ bench_cpu_mem() {
         warn "sysbench image unavailable; skipping CPU/memory throughput"
         return 0
     fi
-    info "== CPU + memory throughput (sysbench, ${SYSBENCH_REPS:-5} reps) =="
-    local reps="${SYSBENCH_REPS:-5}"
+    info "== CPU + memory throughput (sysbench, ${SYSBENCH_REPS:-$REPS} reps) =="
+    local reps="${SYSBENCH_REPS:-$REPS}"
     local cpu_pairs="" mem_pairs=""
     local alias
     for alias in "${aliases[@]}"; do
@@ -198,25 +198,28 @@ bench_network() {
         warn "iperf3 image unavailable; skipping network throughput"
         return 0
     fi
-    info "== Network throughput (iperf3 loopback, ${IPERF_DURATION}s) =="
+    info "== Network throughput (iperf3 loopback, ${REPS} reps, ${IPERF_DURATION}s each) =="
     local pairs=""
     local alias
     for alias in "${aliases[@]}"; do
-        local out_txt v
-        out_txt="$(run_capture "$alias" "iperf-${alias}-$$" "$IPERF_IMAGE" sh -c \
-            "iperf3 -s -D; sleep 1; iperf3 -c 127.0.0.1 -t $IPERF_DURATION -P $IPERF_PARALLEL -J" || true)"
-        # Extract sum_received bits_per_second from the JSON blob in the output.
-        v="$(echo "$out_txt" | sed -n '/{/,$p' | python3 -c \
-            "import sys,json
+        local samples="" i out_txt v
+        for ((i = 1; i <= REPS; i++)); do
+            out_txt="$(run_capture "$alias" "iperf-${alias}-${i}-$$" "$IPERF_IMAGE" sh -c \
+                "iperf3 -s -D; sleep 1; iperf3 -c 127.0.0.1 -t $IPERF_DURATION -P $IPERF_PARALLEL -J" || true)"
+            # Extract sum_received bits_per_second from the JSON blob in the output.
+            v="$(echo "$out_txt" | sed -n '/{/,$p' | python3 -c \
+                "import sys,json
 try:
     d=json.load(sys.stdin)
     bps=d['end']['sum_received']['bits_per_second']
     print(round(bps/1e9,3))
 except Exception:
     print('')" 2>/dev/null)"
+            [[ -n "$v" ]] && samples+="$v"$'\n'
+        done
         local js
-        js="$(printf '%s' "$v" | stats_json)"
-        info "  $alias: ${v:-n/a} Gbit/s"
+        js="$(echo "$samples" | stats_json)"
+        info "  $alias: $js"
         pairs+="${alias}"$'\t'"${js}"$'\n'
     done
     write_metric_json "$out/network.json" "network_throughput" "Gbit_per_sec" \
@@ -233,20 +236,24 @@ bench_app_redis() {
         warn "redis image unavailable; skipping redis-benchmark app workload"
         return 0
     fi
-    info "== App: redis-benchmark SET/GET (loopback, ${REDIS_BENCH_REQUESTS} reqs) =="
+    info "== App: redis-benchmark SET/GET (${REPS} reps, ${REDIS_BENCH_REQUESTS} reqs each) =="
     local set_pairs="" get_pairs=""
     local alias
     for alias in "${aliases[@]}"; do
-        local out_txt sv gv
-        out_txt="$(run_capture "$alias" "redis-${alias}-$$" "$REDIS_IMAGE" sh -c \
-            "redis-server --daemonize yes --save '' --appendonly no >/dev/null 2>&1; sleep 1; \
-             redis-benchmark -q -n $REDIS_BENCH_REQUESTS -c $REDIS_BENCH_CLIENTS -P $REDIS_BENCH_PIPELINE -t set,get" || true)"
-        sv="$(echo "$out_txt" | tr '\r' '\n' | awk '/^SET: [0-9]/{print $2; exit}')"
-        gv="$(echo "$out_txt" | tr '\r' '\n' | awk '/^GET: [0-9]/{print $2; exit}')"
+        local set_samples="" get_samples="" i out_txt sv gv
+        for ((i = 1; i <= REPS; i++)); do
+            out_txt="$(run_capture "$alias" "redis-${alias}-${i}-$$" "$REDIS_IMAGE" sh -c \
+                "redis-server --daemonize yes --save '' --appendonly no >/dev/null 2>&1; sleep 1; \
+                 redis-benchmark -q -n $REDIS_BENCH_REQUESTS -c $REDIS_BENCH_CLIENTS -P $REDIS_BENCH_PIPELINE -t set,get" || true)"
+            sv="$(echo "$out_txt" | tr '\r' '\n' | awk '/^SET: [0-9]/{print $2; exit}')"
+            gv="$(echo "$out_txt" | tr '\r' '\n' | awk '/^GET: [0-9]/{print $2; exit}')"
+            [[ -n "$sv" ]] && set_samples+="$sv"$'\n'
+            [[ -n "$gv" ]] && get_samples+="$gv"$'\n'
+        done
         local sj gj
-        sj="$(printf '%s' "$sv" | stats_json)"
-        gj="$(printf '%s' "$gv" | stats_json)"
-        info "  $alias SET: ${sv:-n/a} req/s  GET: ${gv:-n/a} req/s"
+        sj="$(echo "$set_samples" | stats_json)"
+        gj="$(echo "$get_samples" | stats_json)"
+        info "  $alias SET: $sj  GET: $gj"
         set_pairs+="${alias}"$'\t'"${sj}"$'\n'
         get_pairs+="${alias}"$'\t'"${gj}"$'\n'
     done
