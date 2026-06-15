@@ -1,1 +1,20 @@
 metric,unit,runtime,median,p95,stddev
+Startup latency,ms,stock,169.00,179.90,7.79
+Startup latency,ms,hardened_enforced,95.50,98.65,2.29
+Startup latency,ms,gvisor,512.50,523.00,12.09
+Startup latency,ms,docker,530.50,581.50,66.69
+CPU (sysbench),events/s,stock,"1,637","1,637",0.30
+CPU (sysbench),events/s,gvisor,"1,610","1,610",0.07
+CPU (sysbench),events/s,docker,"1,637","1,637",0.14
+Memory throughput (sysbench),MiB/s,stock,"6,158","6,162",4.02
+Memory throughput (sysbench),MiB/s,gvisor,"1,667","1,677",10.43
+Memory throughput (sysbench),MiB/s,docker,"6,143","6,169",28.43
+Network (iperf3 loopback),Gbit/s,stock,31.94,32.23,0.21
+Network (iperf3 loopback),Gbit/s,gvisor,22.39,23.04,0.39
+Network (iperf3 loopback),Gbit/s,docker,31.94,32.36,0.23
+redis-benchmark SET,req/s,stock,"65,862","66,757","1,515"
+redis-benchmark SET,req/s,gvisor,"17,422","17,767",201.47
+redis-benchmark SET,req/s,docker,"63,967","64,929","2,266"
+redis-benchmark GET,req/s,stock,"62,632","64,281","1,890"
+redis-benchmark GET,req/s,gvisor,"17,564","17,664",80.63
+redis-benchmark GET,req/s,docker,"61,593","65,119","3,026"

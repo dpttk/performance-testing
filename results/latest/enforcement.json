@@ -4,31 +4,31 @@
   "workload": "synthetic",
   "profile": {
     "name": "synthetic",
-    "scan_ms": 3443,
+    "scan_ms": 3441,
     "seccomp_default_action": "SCMP_ACT_ERRNO",
     "seccomp_allowed_syscalls": 56,
-    "apparmor_profile": "runc_scan_scan_synthetic_147844"
+    "apparmor_profile": "runc_scan_scan_synthetic_310250"
   },
   "results": {
     "raw": {
       "count": 8,
-      "min": 462.0,
-      "median": 466.5,
-      "mean": 466.5,
-      "p95": 471.6,
-      "p99": 472.72,
+      "min": 466.0,
+      "median": 469.0,
+      "mean": 469.125,
+      "p95": 472.3,
+      "p99": 472.86,
       "max": 473.0,
-      "stddev": 3.24
+      "stddev": 2.088
     },
     "enforced": {
       "count": 8,
-      "min": 495.0,
-      "median": 500.0,
-      "mean": 500.875,
-      "p95": 509.2,
-      "p99": 511.44,
-      "max": 512.0,
-      "stddev": 5.254
+      "min": 499.0,
+      "median": 506.0,
+      "mean": 505.625,
+      "p95": 510.65,
+      "p99": 510.93,
+      "max": 511.0,
+      "stddev": 3.967
     }
   },
   "exit_counts": {
@@ -42,5 +42,5 @@
     "enforced_output": "RESULT=500"
   },
   "functional_preserved": true,
-  "enforcement_overhead_pct_median": 7.18
+  "enforcement_overhead_pct_median": 7.89
 }

@@ -1,0 +1,37 @@
+{
+  "metric": "redis_get",
+  "unit": "requests_per_sec",
+  "description": "redis-benchmark GET throughput, server+client loopback (higher is better)",
+  "results": {
+    "stock": {
+      "count": 8,
+      "min": 58139.54,
+      "median": 62631.57,
+      "mean": 62203.25,
+      "p95": 64281.391,
+      "p99": 64358.422,
+      "max": 64377.68,
+      "stddev": 1890.37
+    },
+    "gvisor": {
+      "count": 8,
+      "min": 17421.6,
+      "median": 17564.405,
+      "mean": 17554.495,
+      "p95": 17663.707,
+      "p99": 17675.349,
+      "max": 17678.26,
+      "stddev": 80.631
+    },
+    "docker": {
+      "count": 8,
+      "min": 57142.86,
+      "median": 61592.955,
+      "mean": 61405.518,
+      "p95": 65118.575,
+      "p99": 65197.627,
+      "max": 65217.39,
+      "stddev": 3025.821
+    }
+  }
+}

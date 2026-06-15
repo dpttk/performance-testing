@@ -24,25 +24,34 @@ run_perf_suite() {
     pin_cpu_governor >/dev/null || true
     capture_host_metadata "$out_dir/host-metadata.txt"
 
-    local active=()
+    local baseline=()
     local alias
     for alias in $RUNTIMES; do
         if runtime_available "$alias"; then
-            active+=("$alias")
+            baseline+=("$alias")
         else
             warn "Runtime '$alias' unavailable; excluding."
         fi
     done
-    [[ ${#active[@]} -gt 0 ]] || error "No baseline runtimes available."
+
+    local enforced=()
+    if runtime_available hardened_enforced; then
+        enforced+=(hardened_enforced)
+    else
+        warn "hardened_enforced unavailable (run profile stage first)."
+    fi
+
+    local active=("${baseline[@]}" "${enforced[@]}")
+    [[ ${#active[@]} -gt 0 ]] || error "No runtimes available for benchmarking."
     echo "${active[*]}" >"$out_dir/active-runtimes.txt"
-    info "Baseline runtimes: ${active[*]}"
+    info "Benchmark runtimes: ${active[*]}"
 
     run_metric() {
         case "$1" in
             latency) bench_latency "$out_dir" "${active[@]}" ;;
-            cpu_mem) bench_cpu_mem "$out_dir" "${active[@]}" ;;
-            network) bench_network "$out_dir" "${active[@]}" ;;
-            app) bench_app_redis "$out_dir" "${active[@]}" ;;
+            cpu_mem) bench_cpu_mem "$out_dir" "${baseline[@]}" ;;
+            network) bench_network "$out_dir" "${baseline[@]}" ;;
+            app) bench_app_redis "$out_dir" "${baseline[@]}" ;;
             *) warn "Unknown metric '$1'";;
         esac
     }

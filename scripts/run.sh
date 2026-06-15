@@ -65,4 +65,13 @@ info "=== [5/5] Aggregate report ==="
 
 cp "$PERF_DIR/config.env" "$RUN_DIR/config.env.used" 2>/dev/null || true
 
+LATEST_DIR="$PERF_DIR/results/latest"
+mkdir -p "$LATEST_DIR"
+rsync -a --delete "$RUN_DIR/" "$LATEST_DIR/" 2>/dev/null || {
+    rm -rf "$LATEST_DIR"
+    mkdir -p "$LATEST_DIR"
+    cp -a "$RUN_DIR/." "$LATEST_DIR/"
+}
+info "Published snapshot: $LATEST_DIR"
+
 info "Done: $RUN_DIR/report.md"

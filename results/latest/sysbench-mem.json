@@ -1,0 +1,37 @@
+{
+  "metric": "sysbench_memory",
+  "unit": "MiB_per_sec",
+  "description": "sysbench memory transfer MiB/s (higher is better)",
+  "results": {
+    "stock": {
+      "count": 2,
+      "min": 6154.0,
+      "median": 6158.02,
+      "mean": 6158.02,
+      "p95": 6161.638,
+      "p99": 6161.96,
+      "max": 6162.04,
+      "stddev": 4.02
+    },
+    "gvisor": {
+      "count": 2,
+      "min": 1656.7,
+      "median": 1667.125,
+      "mean": 1667.125,
+      "p95": 1676.507,
+      "p99": 1677.341,
+      "max": 1677.55,
+      "stddev": 10.425
+    },
+    "docker": {
+      "count": 2,
+      "min": 6115.01,
+      "median": 6143.44,
+      "mean": 6143.44,
+      "p95": 6169.027,
+      "p99": 6171.301,
+      "max": 6171.87,
+      "stddev": 28.43
+    }
+  }
+}

@@ -1,0 +1,37 @@
+{
+  "metric": "sysbench_cpu",
+  "unit": "events_per_sec",
+  "description": "sysbench CPU events/s (higher is better)",
+  "results": {
+    "stock": {
+      "count": 2,
+      "min": 1636.54,
+      "median": 1636.84,
+      "mean": 1636.84,
+      "p95": 1637.11,
+      "p99": 1637.134,
+      "max": 1637.14,
+      "stddev": 0.3
+    },
+    "gvisor": {
+      "count": 2,
+      "min": 1609.43,
+      "median": 1609.505,
+      "mean": 1609.505,
+      "p95": 1609.572,
+      "p99": 1609.578,
+      "max": 1609.58,
+      "stddev": 0.075
+    },
+    "docker": {
+      "count": 2,
+      "min": 1636.83,
+      "median": 1636.97,
+      "mean": 1636.97,
+      "p95": 1637.096,
+      "p99": 1637.107,
+      "max": 1637.11,
+      "stddev": 0.14
+    }
+  }
+}

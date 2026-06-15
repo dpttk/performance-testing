@@ -199,6 +199,40 @@ runtime_available() {
     return 0
 }
 
+# Build a one-off probe bundle from the enforced profile and run it.
+bundle_run() {
+    local alias="$1" id="$2" capture="$3"; shift 3
+    local args=("$@")
+    local base="$SCAN_BUNDLES_DIR/$PROFILE_NAME"
+    local src="$base/enforced/config.json"
+    local probe="$base/probes/$id"
+    [[ -f "$src" ]] || error "Enforced bundle missing at $src"
+
+    rm -rf "$probe"
+    mkdir -p "$probe"
+    python3 - "$src" "$probe/config.json" "$base/rootfs" "${args[@]}" <<'PY'
+import json, sys
+src, dst, rootfs = sys.argv[1:4]
+args = sys.argv[4:]
+c = json.load(open(src))
+c["process"]["args"] = args
+c["process"]["terminal"] = False
+c.setdefault("root", {})["path"] = rootfs
+json.dump(c, open(dst, "w"), indent=2)
+PY
+    [[ -d "$base/enforced/generated" ]] && cp -a "$base/enforced/generated" "$probe/generated"
+
+    if [[ "$capture" == "1" ]]; then
+        "$RUNC_HARDENED_BIN" run --bundle "$probe" "$id" 2>&1
+    else
+        "$RUNC_HARDENED_BIN" run --bundle "$probe" "$id" >/dev/null 2>&1
+    fi
+    local rc=$?
+    "$RUNC_HARDENED_BIN" delete -f "$id" >/dev/null 2>&1 || true
+    rm -rf "$probe"
+    return $rc
+}
+
 # Run a container to completion, discard output, and clean up. Used for latency.
 run_ephemeral() {
     local alias="$1" name="$2" image="$3"; shift 3
@@ -212,6 +246,9 @@ run_ephemeral() {
             # ctr semantics (where the image ENTRYPOINT is ignored).
             # shellcheck disable=SC2046
             docker_cmd run --rm $(docker_run_flags "$alias") --entrypoint "" --name "$name" "$image" "$@" >/dev/null 2>&1
+            ;;
+        bundle)
+            bundle_run "$alias" "$name" 0 "$@"
             ;;
         *) error "run_ephemeral unsupported for backend of $alias" ;;
     esac
@@ -228,6 +265,9 @@ run_capture() {
         docker)
             # shellcheck disable=SC2046
             docker_cmd run --rm $(docker_run_flags "$alias") --entrypoint "" --name "$name" "$image" "$@" 2>&1
+            ;;
+        bundle)
+            bundle_run "$alias" "$name" 1 "$@"
             ;;
         *) error "run_capture unsupported for backend of $alias" ;;
     esac

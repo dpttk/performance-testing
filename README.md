@@ -74,6 +74,8 @@ Each run writes to `results/campaign-<timestamp>/`:
 
 Repository snapshot of the most recent agreed run is stored in `results/latest/`.
 
+See [docs/tests.md](docs/tests.md) for a human-readable description of every test stage.
+
 ## Config highlights
 
 Main knobs in `config.env`:
