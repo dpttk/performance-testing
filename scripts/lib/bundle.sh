@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# OCI bundle construction and execution for hardened_enforced runtime.
+# OCI bundle construction and execution for stock/proposed runtimes (same binary).
 
 set -euo pipefail
 
@@ -58,7 +58,7 @@ PY
 
 _bundle_cleanup() {
     local wl="$1" id="$2" probe="$3"
-    "$RUNC_HARDENED_BIN" delete -f "$id" >/dev/null 2>&1 || true
+    "$RUNC_PROPOSED_BIN" delete -f "$id" >/dev/null 2>&1 || true
     rm -rf "$probe"
 }
 
@@ -68,10 +68,10 @@ bundle_run() {
     local probe out rc
     probe="$(_bundle_prepare "$wl" enforced "$id" "$@")"
     if [[ "$capture" == "1" ]]; then
-        out="$("$RUNC_HARDENED_BIN" run --bundle "$probe" "$id" 2>&1)" || rc=$?
+        out="$("$RUNC_PROPOSED_BIN" run --bundle "$probe" "$id" 2>&1)" || rc=$?
         echo "$out"
     else
-        "$RUNC_HARDENED_BIN" run --bundle "$probe" "$id" >/dev/null 2>&1 || rc=$?
+        "$RUNC_PROPOSED_BIN" run --bundle "$probe" "$id" >/dev/null 2>&1 || rc=$?
     fi
     _bundle_cleanup "$wl" "$id" "$probe"
     return "${rc:-0}"
@@ -82,10 +82,10 @@ profile_bundle_run_raw() {
     local probe out rc
     probe="$(_bundle_prepare "$wl" raw "$id" "$@")"
     if [[ "$capture" == "1" ]]; then
-        out="$("$RUNC_HARDENED_BIN" run --bundle "$probe" "$id" 2>&1)" || rc=$?
+        out="$("$RUNC_PROPOSED_BIN" run --bundle "$probe" "$id" 2>&1)" || rc=$?
         echo "$out"
     else
-        "$RUNC_HARDENED_BIN" run --bundle "$probe" "$id" >/dev/null 2>&1 || rc=$?
+        "$RUNC_PROPOSED_BIN" run --bundle "$probe" "$id" >/dev/null 2>&1 || rc=$?
     fi
     _bundle_cleanup "$wl" "$id" "$probe"
     return "${rc:-0}"

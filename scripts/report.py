@@ -3,26 +3,32 @@
 
 Usage: report.py <results_dir> [--no-plots]
 
-Primary comparison subject: hardened_enforced.
+Primary subject: proposed runtime (enforced profiles).
+Overhead baselines: stock for proposed, docker for gVisor.
 """
 import json
 import os
 import sys
 import csv
 
-PRIMARY = "hardened_enforced"
-RUNTIME_ORDER = ["hardened_enforced", "stock", "gvisor", "docker"]
+PRIMARY = "proposed"
+RUNTIME_ORDER = ["stock", "proposed", "docker", "gvisor"]
 RUNTIME_LABEL = {
-    "stock": "stock runc (ctr)",
-    "hardened_enforced": "hardened enforced (bundle)",
-    "gvisor": "gVisor (docker+runsc)",
+    "stock": "Proposed runtime (no profiles)",
+    "proposed": "Proposed runtime (enforced)",
+    "gvisor": "gVisor",
     "docker": "Docker default",
 }
 LAUNCHER = {
-    "stock": "containerd/ctr",
-    "hardened_enforced": "runc bundle",
+    "stock": "OCI bundle",
+    "proposed": "OCI bundle",
+    "gvisor": "Docker",
+    "docker": "Docker",
+}
+# Runtime -> baseline alias for overhead calculation
+OVERHEAD_BASELINE = {
+    "proposed": "stock",
     "gvisor": "docker",
-    "docker": "docker",
 }
 
 SCALAR_METRICS = [
@@ -57,18 +63,22 @@ def fmt(x):
     if x is None:
         return "n/a"
     if isinstance(x, float):
-        if x >= 1000:
+        if abs(x) >= 1000:
             return f"{x:,.0f}"
         return f"{x:.2f}"
     return str(x)
 
 
-def rel_vs_primary(primary_val, val, direction):
-    if primary_val is None or val is None or primary_val == 0:
+def overhead_pct(runtime, baseline_val, val, direction):
+    """Positive overhead = worse than baseline (lower throughput or higher latency)."""
+    if runtime not in OVERHEAD_BASELINE:
+        return "baseline"
+    if baseline_val is None or val is None or baseline_val == 0:
         return "—"
-    if direction == "low":
-        return f"{(val / primary_val - 1) * 100:+.1f}%"
-    return f"{(val / primary_val) * 100:.0f}% of enforced"
+    if direction == "high":
+        # throughput: proposed slower -> positive overhead
+        return f"{(1 - val / baseline_val) * 100:+.2f}%"
+    return f"{(val / baseline_val - 1) * 100:+.2f}%"
 
 
 def validate_metrics(d):
@@ -81,8 +91,6 @@ def validate_metrics(d):
         missing = REQUIRED_RUNTIMES - present
         if missing:
             errors.append(f"{fname}: missing runtimes {sorted(missing)}")
-        if PRIMARY not in present:
-            errors.append(f"{fname}: primary runtime '{PRIMARY}' absent")
     return errors
 
 
@@ -94,6 +102,7 @@ def main():
     do_plots = "--no-plots" not in sys.argv[2:]
     md = []
     csv_rows = []
+    enforcement_rows = []
 
     validation_errors = validate_metrics(d)
     if validation_errors:
@@ -104,7 +113,11 @@ def main():
 
     md.append("# Benchmark Report\n")
     md.append(f"Source: `{d}`\n")
-    md.append(f"Primary subject: **{RUNTIME_LABEL[PRIMARY]}**\n")
+    md.append(
+        "Primary subject: **Proposed runtime (enforced)**. "
+        "Enforcement overhead: proposed vs stock (same binary, same OCI bundle launcher). "
+        "Sandbox overhead: gVisor vs Docker default.\n"
+    )
 
     meta = os.path.join(d, "host-metadata.txt")
     if os.path.exists(meta):
@@ -113,8 +126,8 @@ def main():
     md.append("## Performance Metrics\n")
     md.append(
         "Medians over repeated samples. "
-        "'vs enforced' expresses baseline deviation from the primary subject "
-        "(positive latency = slower than enforced; throughput shown as % of enforced).\n"
+        "**Overhead** is positive when the runtime is worse than its baseline "
+        "(lower throughput). stock and docker rows are baselines.\n"
     )
     plot_data = {}
     cold_data = {}
@@ -126,11 +139,9 @@ def main():
         res = doc["results"]
         cold = doc.get("cold_start_ms", {})
         runtimes = order_runtimes(res.keys())
-        primary_stats = res.get(PRIMARY, {})
-        primary_median = primary_stats.get("median") if isinstance(primary_stats, dict) else None
 
         md.append(f"\n### {title} ({unit})\n")
-        md.append("| Runtime | Launcher | median | p95 | stddev | vs enforced |")
+        md.append("| Runtime | Launcher | median | p95 | stddev | overhead vs baseline |")
         md.append("|---|---|---|---|---|---|")
         for r in runtimes:
             st = res.get(r, {})
@@ -139,14 +150,26 @@ def main():
             median = st.get("median")
             p95 = st.get("p95")
             sd = st.get("stddev")
-            rel = "—" if r == PRIMARY else rel_vs_primary(primary_median, median, direction)
+            base_alias = OVERHEAD_BASELINE.get(r)
+            base_median = None
+            if base_alias:
+                base_st = res.get(base_alias, {})
+                if isinstance(base_st, dict):
+                    base_median = base_st.get("median")
+            oh = overhead_pct(r, base_median, median, direction)
             md.append(
                 f"| {RUNTIME_LABEL.get(r, r)} | {LAUNCHER.get(r, 'n/a')} | "
-                f"{fmt(median)} | {fmt(p95)} | {fmt(sd)} | {rel} |"
+                f"{fmt(median)} | {fmt(p95)} | {fmt(sd)} | {oh} |"
             )
-            csv_rows.append([title, unit, r, LAUNCHER.get(r, ""), fmt(median), fmt(p95), fmt(sd)])
+            csv_rows.append([title, unit, r, LAUNCHER.get(r, ""), fmt(median), fmt(p95), fmt(sd), oh])
             if median is not None:
                 plot_data.setdefault(title, {})[r] = median
+            if r == PRIMARY and base_median and median:
+                if direction == "high":
+                    enf = round((1 - median / base_median) * 100, 2)
+                else:
+                    enf = round((median / base_median - 1) * 100, 2)
+                enforcement_rows.append((title, enf, fmt(base_median), fmt(median)))
             cs = cold.get(r)
             if isinstance(cs, dict):
                 cold_data.setdefault(title, {})[r] = cs.get("first_rep_ms", cs.get("median"))
@@ -154,44 +177,29 @@ def main():
                 cold_data.setdefault(title, {})[r] = cs
         md.append("")
 
-    if cold_data:
-        md.append("## Cold-Start Wall Time (first measured rep, ms)\n")
-        md.append("| Workload | " + " | ".join(RUNTIME_LABEL[r] for r in RUNTIME_ORDER if any(r in v for v in cold_data.values())) + " |")
-        md.append("|" + "---|" * (1 + len([r for r in RUNTIME_ORDER if any(r in v for v in cold_data.values())])) )
-        for title, series in cold_data.items():
-            row = [title]
-            for r in RUNTIME_ORDER:
-                if r in series:
-                    row.append(fmt(series[r]))
-            if len(row) > 1:
-                md.append("| " + " | ".join(row) + " |")
+    if enforcement_rows:
+        md.append("## Proposed Runtime Enforcement Overhead (proposed vs stock)\n")
+        md.append("| Workload | stock median | proposed median | enforcement overhead |")
+        md.append("|---|---|---|---|")
+        for title, enf, stock_m, prop_m in enforcement_rows:
+            md.append(f"| {title} | {stock_m} | {prop_m} | **{enf:+.2f}%** |")
         md.append("")
 
-    # Enforcement summaries committed with profiles (optional)
-    prof_root = os.path.join(os.path.dirname(os.path.dirname(d)), "profiles")
-    enf_items = []
-    for wl in ("sysbench-cpu", "sysbench-mem", "network-iperf", "redis-app"):
-        p = os.path.join(prof_root, f"enforcement-{wl}.json")
-        if os.path.exists(p):
-            try:
-                enf_items.append(json.load(open(p)))
-            except Exception:
-                pass
-    if enf_items:
-        md.append("## Profile Enforcement Overhead (preparation phase)\n")
-        md.append("| Workload | raw median (ms) | enforced median (ms) | overhead % |")
-        md.append("|---|---|---|---|")
-        for item in enf_items:
-            raw = item.get("results", {}).get("raw", {}).get("median")
-            enf = item.get("results", {}).get("enforced", {}).get("median")
-            oh = item.get("enforcement_overhead_pct_median")
-            md.append(f"| {item.get('workload')} | {fmt(raw)} | {fmt(enf)} | {fmt(oh)} |")
+    if cold_data:
+        md.append("## Cold-Start Wall Time (first measured rep, ms)\n")
+        cols = [r for r in RUNTIME_ORDER if any(r in v for v in cold_data.values())]
+        md.append("| Workload | " + " | ".join(RUNTIME_LABEL[r] for r in cols) + " |")
+        md.append("|" + "---|" * (1 + len(cols)))
+        for title, series in cold_data.items():
+            row = [title] + [fmt(series[r]) for r in cols if r in series]
+            if len(row) > 1:
+                md.append("| " + " | ".join(row) + " |")
         md.append("")
 
     csv_path = os.path.join(d, "report.csv")
     with open(csv_path, "w", newline="") as fh:
         w = csv.writer(fh)
-        w.writerow(["metric", "unit", "runtime", "launcher", "median", "p95", "stddev"])
+        w.writerow(["metric", "unit", "runtime", "launcher", "median", "p95", "stddev", "overhead_vs_baseline"])
         w.writerows(csv_rows)
 
     plot_files = []
@@ -204,8 +212,8 @@ def main():
             plots_dir = os.path.join(d, "plots")
             os.makedirs(plots_dir, exist_ok=True)
             colors = {
-                "hardened_enforced": "#2a9d8f",
                 "stock": "#457b9d",
+                "proposed": "#2a9d8f",
                 "gvisor": "#e9c46a",
                 "docker": "#e76f51",
             }
@@ -217,11 +225,11 @@ def main():
                 vals = [series[r] for r in runtimes]
                 labels = [RUNTIME_LABEL.get(r, r) for r in runtimes]
                 bar_colors = [colors.get(r, "#888888") for r in runtimes]
-                fig, ax = plt.subplots(figsize=(8, 4.5))
+                fig, ax = plt.subplots(figsize=(9, 4.5))
                 ax.bar(labels, vals, color=bar_colors)
                 ax.set_title(title)
                 ax.set_ylabel(title)
-                plt.xticks(rotation=15, ha="right")
+                plt.xticks(rotation=12, ha="right")
                 plt.tight_layout()
                 safe = "".join(c if c.isalnum() else "_" for c in title)[:40]
                 fp = os.path.join(plots_dir, safe + ".png")

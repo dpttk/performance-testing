@@ -16,6 +16,7 @@ fi
 : "${RUNC_STOCK_REF:=main}"
 : "${RUNC_STOCK_BIN:=/usr/local/sbin/runc-stock}"
 : "${RUNC_HARDENED_BIN:=/usr/local/sbin/runc-hardened}"
+: "${RUNC_PROPOSED_BIN:=$RUNC_HARDENED_BIN}"
 : "${CONTAINERD_CONFIG:=/etc/containerd/config.toml}"
 : "${CONTAINERD_SOCKET:=/run/containerd/containerd.sock}"
 : "${CONTAINERD_NAMESPACE:=performance-eval}"
@@ -41,7 +42,7 @@ fi
 : "${DOCKER_REGISTER_EXTRA_RUNTIMES:=1}"
 
 # --- Runtime set + statistical rigor ---
-: "${RUNTIMES:=stock gvisor docker hardened_enforced}"
+: "${RUNTIMES:=stock proposed gvisor docker}"
 : "${WARMUP:=10}"
 : "${REPS:=50}"
 : "${PIN_CPU_GOVERNOR:=1}"
@@ -118,34 +119,20 @@ runtime_handler() {
     esac
 }
 
-# ---------------------------------------------------------------------------
 # Runtime-runner abstraction
 #
-# Every runtime under test is addressed through a stable alias. The launch
-# backend differs (containerd `ctr`, Docker CLI, or a raw runc OCI bundle), but
-# benchmark modules only call the generic run_* helpers below.
+#   stock     bundle  + proposed runtime binary, raw OCI config (no profiles)
+#   proposed  bundle  + proposed runtime binary, enforced profiles
+#   gvisor    docker  + runsc
+#   docker    docker  + default runc
 #
-#   stock              ctr     + runc-stock (containerd default profiles)
-#   hardened           ctr     + dpttk/runc, raw (0-cap default, no profiles)
-#   gvisor             docker  + runsc (userspace-kernel sandbox)
-#   docker             docker  + runc (Docker default seccomp/AppArmor posture)
-#   hardened_enforced  bundle  + dpttk/runc with generated profiles applied
-# ---------------------------------------------------------------------------
-
-#
-# NOTE on gVisor launcher: containerd 2.2.x + the runsc v1 shim hang on this
-# host (the shim stalls before the container init runs). gVisor works perfectly
-# through Docker (`docker run --runtime=runsc`), so gVisor uses the Docker
-# backend. This is methodologically clean: gVisor (Docker launcher) is compared
-# against the `docker` default-runc runtime (same Docker launcher) to isolate
-# pure sandbox cost, while `stock` vs `hardened` isolates the runc binary cost
-# on the containerd-native path.
+# stock and proposed share the identical launcher; only the bundle config differs.
+# gvisor and docker share the Docker launcher (baseline for sandbox comparison).
 #
 runtime_backend() {
     case "$1" in
-        stock|hardened) echo "ctr" ;;
+        stock|proposed) echo "bundle" ;;
         docker|gvisor) echo "docker" ;;
-        hardened_enforced) echo "bundle" ;;
         *) error "Unknown runtime alias: $1" ;;
     esac
 }
@@ -188,9 +175,10 @@ runtime_available() {
             fi
             ;;
         bundle)
-            [[ -x "$RUNC_HARDENED_BIN" ]] || return 1
+            [[ -x "$RUNC_PROPOSED_BIN" ]] || return 1
             local wl
             for wl in sysbench-cpu sysbench-mem network-iperf redis-app; do
+                [[ -f "$PROFILES_DIR/$wl/raw/config.json" ]] || return 1
                 [[ -f "$PROFILES_DIR/$wl/enforced/config.json" ]] || return 1
             done
             ;;
@@ -265,11 +253,9 @@ stop_container() {
 # Human-readable launcher description for a runtime alias (for reports).
 runtime_launcher() {
     case "$1" in
-        stock) echo "ctr+$CTR_RUNTIME_STOCK" ;;
-        hardened) echo "ctr+$CTR_RUNTIME_HARDENED" ;;
+        stock|proposed) echo "$RUNC_PROPOSED_BIN run --bundle" ;;
         gvisor) echo "docker(--runtime=runsc)" ;;
         docker) echo "docker(default)" ;;
-        hardened_enforced) echo "$RUNC_HARDENED_BIN run --bundle" ;;
         *) echo "unknown" ;;
     esac
 }
@@ -277,21 +263,25 @@ runtime_launcher() {
 smoke_test_runtime() {
     local alias="$1" wl="sysbench-cpu"
     local name="smoke-${alias}-$$"
-    local image cmd out
+    local cmd out
     info "Smoke test ($alias): $(runtime_launcher "$alias") workload=$wl"
     # shellcheck source=scripts/lib/workloads.sh
     source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/workloads.sh"
-    image="$(workload_image "$wl")"
+    # shellcheck source=scripts/lib/bundle.sh
+    source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/bundle.sh"
     cmd="$(workload_command "$wl")"
-    if [[ "$alias" == "hardened_enforced" ]]; then
-        # shellcheck source=scripts/lib/bundle.sh
-        source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/bundle.sh"
-        out="$(bundle_run "$wl" "$name" 1 /bin/sh -c "$cmd")"
-        [[ -n "$(workload_parse_value "$wl" "$out")" ]] || return 1
-    else
-        out="$(run_capture "$alias" "$name" "$image" sh -c "$cmd")"
-        [[ -n "$(workload_parse_value "$wl" "$out")" ]] || return 1
-    fi
+    case "$alias" in
+        stock)
+            out="$(profile_bundle_run_raw "$wl" "$name" 1 /bin/sh -c "$cmd")"
+            ;;
+        proposed)
+            out="$(bundle_run "$wl" "$name" 1 /bin/sh -c "$cmd")"
+            ;;
+        *)
+            out="$(run_capture "$alias" "$name" "$(workload_image "$wl")" sh -c "$cmd")"
+            ;;
+    esac
+    [[ -n "$(workload_parse_value "$wl" "$out")" ]] || return 1
 }
 
 write_json_header() {

@@ -53,11 +53,17 @@ run_workload_capture() {
     local image cmd
     image="$(workload_image "$wl")"
     cmd="$(workload_command "$wl")"
-    if [[ "$alias" == "hardened_enforced" ]]; then
-        bundle_run "$wl" "$name" 1 /bin/sh -c "$cmd"
-    else
-        run_capture "$alias" "$name" "$image" sh -c "$cmd"
-    fi
+    case "$alias" in
+        stock)
+            profile_bundle_run_raw "$wl" "$name" 1 /bin/sh -c "$cmd"
+            ;;
+        proposed)
+            bundle_run "$wl" "$name" 1 /bin/sh -c "$cmd"
+            ;;
+        *)
+            run_capture "$alias" "$name" "$image" sh -c "$cmd"
+            ;;
+    esac
 }
 
 bench_workload() {

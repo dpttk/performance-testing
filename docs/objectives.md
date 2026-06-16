@@ -2,37 +2,31 @@
 
 ## Purpose
 
-Quantify the steady-state performance cost of enforced security profiles on a
-hardened OCI runtime relative to common baseline deployments.
+Quantify the steady-state performance cost of enforced security profiles on the
+**proposed OCI runtime** relative to the same runtime without profiles and to
+reference sandbox deployments.
 
 ## Primary subject
 
-`hardened_enforced` — `dpttk/runc` executing OCI bundles with pre-generated
-seccomp, AppArmor, and capability profiles derived from each benchmark workload.
+`proposed` — proposed runtime (`dpttk/runc`) with pre-generated seccomp, AppArmor,
+and capability profiles.
 
-## Baselines
+## Reference runtimes
 
 | Alias | Role |
 |-------|------|
-| `stock` | Upstream `runc` via containerd; native low-level reference |
-| `gvisor` | Userspace-kernel sandbox via Docker |
-| `docker` | Industry-default container deployment posture |
+| `stock` | Proposed runtime binary, **no profiles** (enforcement baseline) |
+| `docker` | Industry-default Docker deployment (sandbox baseline) |
+| `gvisor` | Userspace-kernel sandbox (compared against docker) |
 
 ## Research questions
 
-1. What is the enforcement overhead of hardened profiles per workload class?
-2. How does `hardened_enforced` throughput compare to each baseline under identical workloads?
-3. Are functional semantics preserved after profile application (raw output equals enforced output)?
+1. What is the enforcement overhead of security profiles (proposed vs stock)?
+2. What is the sandbox overhead of gVisor (gvisor vs docker)?
+3. Are workloads functionally preserved after profile application?
 
 ## Success criteria
 
-- All four runtimes complete every workload with identical commands.
-- Pre-generated profiles are committed under `profiles/` and pass functional verification before measurement.
-- Full campaigns use `REPS >= 50` and publish to `results/latest/`.
-- Reports present `hardened_enforced` as the primary comparison subject.
-
-## Non-goals
-
-- Trivial startup probes (`/bin/true`) as benchmark workloads.
-- Security scanning during the measurement phase.
-- Cross-host absolute performance claims without environment metadata.
+- `stock` and `proposed` share one OCI bundle launcher
+- `gvisor` and `docker` share one Docker launcher
+- Reports show per-workload enforcement overhead (proposed vs stock)
