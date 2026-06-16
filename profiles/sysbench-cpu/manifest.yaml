@@ -1,0 +1,7 @@
+workload: "sysbench-cpu"
+image: "severalnines/sysbench@sha256:64cd003bfa21eaab22f985e7b95f90d21a970229f5f628718657dd1bae669abd"
+command: "sysbench cpu --cpu-max-prime=20000 --threads=1 run"
+scan_ms: 12873
+seccomp_default_action: "SCMP_ACT_ERRNO"
+seccomp_allowed_syscalls: 54
+apparmor_profile: "runc_scan_scan_sysbench_cpu_29382"

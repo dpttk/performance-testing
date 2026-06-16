@@ -33,6 +33,7 @@ fi
 : "${BUSYBOX_IMAGE:=docker.io/library/busybox:latest}"
 : "${REDIS_IMAGE:=docker.io/library/redis:7-alpine}"
 : "${SYSBENCH_IMAGE:=docker.io/severalnines/sysbench:latest}"
+: "${IPERF_IMAGE:=docker.io/networkstatic/iperf3:latest}"
 : "${GO_VERSION:=1.22.4}"
 
 # --- Docker ---
@@ -40,30 +41,24 @@ fi
 : "${DOCKER_REGISTER_EXTRA_RUNTIMES:=1}"
 
 # --- Runtime set + statistical rigor ---
-: "${RUNTIMES:=stock gvisor docker}"
-: "${WARMUP:=5}"
-: "${REPS:=30}"
+: "${RUNTIMES:=stock gvisor docker hardened_enforced}"
+: "${WARMUP:=10}"
+: "${REPS:=50}"
 : "${PIN_CPU_GOVERNOR:=1}"
 : "${PIN_CPU_CORES:=}"
 
 # --- Workload tunables ---
-: "${IPERF_DURATION:=10}"
+: "${IPERF_DURATION:=30}"
 : "${IPERF_PARALLEL:=1}"
-: "${REDIS_BENCH_REQUESTS:=100000}"
+: "${REDIS_BENCH_REQUESTS:=500000}"
 : "${REDIS_BENCH_CLIENTS:=50}"
 : "${REDIS_BENCH_PIPELINE:=1}"
 
-# --- Enforced profile flow ---
-: "${SCAN_BUNDLES_DIR:=$PERF_DIR/bundles/scanned}"
+# --- Pre-generated security profiles (committed under profiles/) ---
+: "${PROFILES_DIR:=$PERF_DIR/profiles}"
 : "${SCAN_UID:=65532}"
 : "${SCAN_GID:=65532}"
-: "${PROFILE_NAME:=synthetic}"
-: "${PROFILE_IMAGE:=$BUSYBOX_IMAGE}"
-: "${PROFILE_COMMAND:=n=0; i=0; while [ \$i -lt 500 ]; do if cat /etc/passwd >/dev/null 2>&1; then n=\$((n+1)); fi; i=\$((i+1)); done; echo RESULT=\$n}"
 : "${GENERATE_PLOTS:=1}"
-
-# --- Image references without the registry prefix (docker CLI form) ---
-: "${IPERF_IMAGE:=docker.io/networkstatic/iperf3:latest}"
 
 info()  { echo -e "\033[0;32m[+]\033[0m $*" >&2; }
 warn()  { echo -e "\033[0;33m[!]\033[0m $*" >&2; }
@@ -193,47 +188,17 @@ runtime_available() {
             fi
             ;;
         bundle)
-            [[ -x "$RUNC_HARDENED_BIN" && -f "$SCAN_BUNDLES_DIR/$PROFILE_NAME/enforced/config.json" ]] || return 1
+            [[ -x "$RUNC_HARDENED_BIN" ]] || return 1
+            local wl
+            for wl in sysbench-cpu sysbench-mem network-iperf redis-app; do
+                [[ -f "$PROFILES_DIR/$wl/enforced/config.json" ]] || return 1
+            done
             ;;
     esac
     return 0
 }
 
-# Build a one-off probe bundle from the enforced profile and run it.
-bundle_run() {
-    local alias="$1" id="$2" capture="$3"; shift 3
-    local args=("$@")
-    local base="$SCAN_BUNDLES_DIR/$PROFILE_NAME"
-    local src="$base/enforced/config.json"
-    local probe="$base/probes/$id"
-    [[ -f "$src" ]] || error "Enforced bundle missing at $src"
-
-    rm -rf "$probe"
-    mkdir -p "$probe"
-    python3 - "$src" "$probe/config.json" "$base/rootfs" "${args[@]}" <<'PY'
-import json, sys
-src, dst, rootfs = sys.argv[1:4]
-args = sys.argv[4:]
-c = json.load(open(src))
-c["process"]["args"] = args
-c["process"]["terminal"] = False
-c.setdefault("root", {})["path"] = rootfs
-json.dump(c, open(dst, "w"), indent=2)
-PY
-    [[ -d "$base/enforced/generated" ]] && cp -a "$base/enforced/generated" "$probe/generated"
-
-    if [[ "$capture" == "1" ]]; then
-        "$RUNC_HARDENED_BIN" run --bundle "$probe" "$id" 2>&1
-    else
-        "$RUNC_HARDENED_BIN" run --bundle "$probe" "$id" >/dev/null 2>&1
-    fi
-    local rc=$?
-    "$RUNC_HARDENED_BIN" delete -f "$id" >/dev/null 2>&1 || true
-    rm -rf "$probe"
-    return $rc
-}
-
-# Run a container to completion, discard output, and clean up. Used for latency.
+# Run a container to completion, discard output, and clean up.
 run_ephemeral() {
     local alias="$1" name="$2" image="$3"; shift 3
     case "$(runtime_backend "$alias")" in
@@ -246,9 +211,6 @@ run_ephemeral() {
             # ctr semantics (where the image ENTRYPOINT is ignored).
             # shellcheck disable=SC2046
             docker_cmd run --rm $(docker_run_flags "$alias") --entrypoint "" --name "$name" "$image" "$@" >/dev/null 2>&1
-            ;;
-        bundle)
-            bundle_run "$alias" "$name" 0 "$@"
             ;;
         *) error "run_ephemeral unsupported for backend of $alias" ;;
     esac
@@ -265,9 +227,6 @@ run_capture() {
         docker)
             # shellcheck disable=SC2046
             docker_cmd run --rm $(docker_run_flags "$alias") --entrypoint "" --name "$name" "$image" "$@" 2>&1
-            ;;
-        bundle)
-            bundle_run "$alias" "$name" 1 "$@"
             ;;
         *) error "run_capture unsupported for backend of $alias" ;;
     esac
@@ -316,10 +275,23 @@ runtime_launcher() {
 }
 
 smoke_test_runtime() {
-    local alias="$1"
+    local alias="$1" wl="sysbench-cpu"
     local name="smoke-${alias}-$$"
-    info "Smoke test ($alias): $(runtime_launcher "$alias")"
-    run_ephemeral "$alias" "$name" "$BUSYBOX_IMAGE" /bin/true
+    local image cmd out
+    info "Smoke test ($alias): $(runtime_launcher "$alias") workload=$wl"
+    # shellcheck source=scripts/lib/workloads.sh
+    source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/workloads.sh"
+    image="$(workload_image "$wl")"
+    cmd="$(workload_command "$wl")"
+    if [[ "$alias" == "hardened_enforced" ]]; then
+        # shellcheck source=scripts/lib/bundle.sh
+        source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/bundle.sh"
+        out="$(bundle_run "$wl" "$name" 1 /bin/sh -c "$cmd")"
+        [[ -n "$(workload_parse_value "$wl" "$out")" ]] || return 1
+    else
+        out="$(run_capture "$alias" "$name" "$image" sh -c "$cmd")"
+        [[ -n "$(workload_parse_value "$wl" "$out")" ]] || return 1
+    fi
 }
 
 write_json_header() {

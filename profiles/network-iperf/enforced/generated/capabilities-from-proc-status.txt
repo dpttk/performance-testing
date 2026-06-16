@@ -1,0 +1,5 @@
+CapInh:	000001ffffffffff
+CapPrm:	000001ffffffffff
+CapEff:	000001ffffffffff
+CapBnd:	000001ffffffffff
+CapAmb:	000001ffffffffff

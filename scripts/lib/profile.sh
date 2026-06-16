@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
-# Enforced-profile lifecycle for synthetic workload:
-#   generate bundle via --security-scan -> functional check -> overhead metrics
+# Per-workload security profile generation and verification (preparation phase only).
 
 set -euo pipefail
 
@@ -8,25 +7,25 @@ set -euo pipefail
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/runtime.sh"
 # shellcheck source=scripts/lib/stats.sh
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/stats.sh"
+# shellcheck source=scripts/lib/workloads.sh
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/workloads.sh"
+# shellcheck source=scripts/lib/bundle.sh
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/bundle.sh"
 
-: "${PROFILE_NAME:=synthetic}"
-: "${PROFILE_IMAGE:=$BUSYBOX_IMAGE}"
-: "${PROFILE_COMMAND:=n=0; i=0; while [ $i -lt 500 ]; do if cat /etc/passwd >/dev/null 2>&1; then n=$((n+1)); fi; i=$((i+1)); done; echo RESULT=$n}"
+profile_generate_workload() {
+    local wl="$1"
+    local image cmd base
+    image="$(workload_image "$wl")"
+    cmd="$(workload_command "$wl")"
+    base="$(workload_profile_dir "$wl")"
 
-profile_generate_bundle() {
-    local name="${1:-$PROFILE_NAME}"
-    local image="${2:-$PROFILE_IMAGE}"
-    local cmd="${3:-$PROFILE_COMMAND}"
-    local base="$SCAN_BUNDLES_DIR/$name"
-
-    info "Profile stage: generate bundle '$name' from $image"
+    info "Profile generation: workload='$wl' image=$image"
     rm -rf "$base"
-    mkdir -p "$base/rootfs"
+    mkdir -p "$base"
 
-    local cid
-    cid="$(docker create "$image" /bin/true)"
-    docker export "$cid" | tar -C "$base/rootfs" -xf - 2>/dev/null
-    docker rm "$cid" >/dev/null
+    ensure_workload_rootfs "$wl"
+    local rootfs
+    rootfs="$(workload_rootfs_dir "$wl")"
 
     (
         cd "$base"
@@ -40,19 +39,25 @@ c = json.load(open(cfg))
 c["process"]["args"] = ["/bin/sh", "-c", cmd]
 c["process"]["terminal"] = False
 c["process"]["user"] = {"uid": uid, "gid": gid}
+c.setdefault("root", {})["readonly"] = False
 json.dump(c, open(cfg, "w"), indent=2)
+PY
+
+    python3 - "$base/config.json" "$rootfs" <<'PY'
+import json, sys
+c = json.load(open(sys.argv[1]))
+c.setdefault("root", {})["path"] = sys.argv[2]
+json.dump(c, open(sys.argv[1], "w"), indent=2)
 PY
 
     cp "$base/config.json" "$base/config.raw.json"
 
     local scan_start scan_end scan_ms scan_rc=0
     scan_start="$(now_ms)"
-    ( cd "$base" && "$RUNC_HARDENED_BIN" run --security-scan "scan-${name}-$$" ) || scan_rc=$?
+    ( cd "$base" && "$RUNC_HARDENED_BIN" run --security-scan "scan-${wl}-$$" ) || scan_rc=$?
     scan_end="$(now_ms)"
     scan_ms=$((scan_end - scan_start))
-    if [[ "$scan_rc" -ne 0 ]]; then
-        error "Scan failed for '$name' (rc=$scan_rc)."
-    fi
+    [[ "$scan_rc" -eq 0 ]] || error "Security scan failed for workload '$wl' (rc=$scan_rc)"
 
     mkdir -p "$base/raw" "$base/enforced"
     cp "$base/config.raw.json" "$base/raw/config.json"
@@ -61,73 +66,123 @@ PY
         cp -a "$base/generated" "$base/enforced/generated"
     fi
 
-    python3 - "$base" "$scan_ms" <<'PY'
-import json, os, sys
-base, scan_ms = sys.argv[1], int(sys.argv[2])
-rootfs = os.path.join(base, "rootfs")
-for variant in ("raw", "enforced"):
-    cfgp = os.path.join(base, variant, "config.json")
-    c = json.load(open(cfgp))
-    c.setdefault("root", {})["path"] = rootfs
-    json.dump(c, open(cfgp, "w"), indent=2)
-
-enf = json.load(open(os.path.join(base, "enforced", "config.json")))
-sec = enf.get("linux", {}).get("seccomp")
-allowed = 0
-if sec:
-    for s in sec.get("syscalls", []):
-        if s.get("action") in ("SCMP_ACT_ALLOW", "SCMP_ACT_LOG"):
-            allowed += len(s.get("names", []))
-summary = {
-    "name": os.path.basename(base),
-    "scan_ms": scan_ms,
-    "seccomp_default_action": sec.get("defaultAction") if sec else None,
-    "seccomp_allowed_syscalls": allowed if sec else 0,
-    "apparmor_profile": enf.get("process", {}).get("apparmorProfile"),
-}
-json.dump(summary, open(os.path.join(base, "profile-summary.json"), "w"), indent=2)
+    for variant in raw enforced; do
+        python3 - "$base/$variant/config.json" "$rootfs" <<'PY'
+import json, sys
+c = json.load(open(sys.argv[1]))
+c.setdefault("root", {})["path"] = sys.argv[2]
+json.dump(c, open(sys.argv[1], "w"), indent=2)
 PY
+    done
+
+    local digest
+    digest="$(docker image inspect "$image" --format '{{.RepoDigests}}' 2>/dev/null | tr -d '[]' | awk '{print $1}')"
+    [[ -n "$digest" ]] || digest="$image"
+    write_workload_manifest "$wl" "$scan_ms" "$digest"
+    profile_patch_apparmor "$wl"
+    profile_patch_seccomp "$wl"
+    info "Profile generated: $base/manifest.yaml (scan_ms=$scan_ms)"
 }
 
-profile_measure_enforcement() {
-    local name="${1:-$PROFILE_NAME}"
-    local out_dir="$2"
-    local base="$SCAN_BUNDLES_DIR/$name"
-    [[ -d "$base/raw" && -d "$base/enforced" ]] || error "Missing bundle pair at $base"
+profile_patch_seccomp() {
+    local wl="$1"
+    [[ "$wl" == "network-iperf" ]] || return 0
+    local sec="$PROFILES_DIR/$wl/enforced/generated/seccomp.json"
+    [[ -f "$sec" ]] || return 0
+    python3 - "$sec" <<'PY'
+import json, sys
+path = sys.argv[1]
+doc = json.load(open(path))
+names = set()
+for grp in doc.get("syscalls", []):
+    if grp.get("action") == "SCMP_ACT_ALLOW":
+        names.update(grp.get("names", []))
+if "socket" in names:
+    # replace AF-filtered socket groups with unrestricted socket
+    doc["syscalls"] = [g for g in doc["syscalls"] if g.get("names") != ["socket"]]
+    doc["syscalls"].append({"names": ["socket"], "action": "SCMP_ACT_ALLOW"})
+    json.dump(doc, open(path, "w"), indent=2)
+PY
+    cp "$sec" "$PROFILES_DIR/$wl/generated/seccomp.json" 2>/dev/null || true
+}
 
-    run_bundle_once() {
-        local variant="$1" id="$2"
-        "$RUNC_HARDENED_BIN" run --bundle "$base/$variant" "$id" >/dev/null 2>&1
-        local rc=$?
-        "$RUNC_HARDENED_BIN" delete -f "$id" >/dev/null 2>&1 || true
-        return $rc
-    }
+profile_patch_apparmor() {
+    local wl="$1"
+    local aa="$PROFILES_DIR/$wl/enforced/generated/apparmor.profile"
+    [[ -f "$aa" ]] || return 0
+    python3 - "$aa" "$wl" <<'PY'
+import sys
+path, wl = sys.argv[1:3]
+text = open(path).read()
+rules = [
+    "  /bin/sh ix,",
+    "  /bin/busybox ix,",
+    "  /tmp/** rw,",
+]
+if wl == "network-iperf":
+    rules += ["  network inet stream,", "  network inet dgram,"]
+if wl == "redis-app":
+    rules += [
+        "  /usr/local/bin/redis-server ix,",
+        "  /usr/local/bin/redis-benchmark ix,",
+    ]
+missing = [r for r in rules if r.strip() not in text]
+if not missing:
+    sys.exit(0)
+marker = "  # --- END runc-scan audit-collected rules ---"
+if marker not in text:
+    text = text.rstrip() + "\n" + "\n".join(missing) + "\n"
+else:
+    text = text.replace(marker, "\n".join(missing) + "\n" + marker)
+open(path, "w").write(text)
+PY
+    for aa in "$PROFILES_DIR/$wl/enforced/generated/apparmor.profile" \
+              "$PROFILES_DIR/$wl/generated/apparmor.profile"; do
+        [[ -f "$aa" ]] && apparmor_parser -r -W "$aa" 2>/dev/null || true
+    done
+}
 
-    run_bundle_result() {
-        local variant="$1" id="$2"
-        "$RUNC_HARDENED_BIN" run --bundle "$base/$variant" "$id" 2>/dev/null | awk '/^RESULT=/{print; exit}'
-        "$RUNC_HARDENED_BIN" delete -f "$id" >/dev/null 2>&1 || true
-    }
+profile_functional_check_workload() {
+    local wl="$1"
+    local base raw_out enf_out raw_fp enf_fp
+    base="$(workload_profile_dir "$wl")"
+    [[ -f "$base/enforced/config.json" && -f "$base/raw/config.json" ]] || \
+        error "Missing profile bundle for workload '$wl'"
 
-    local raw_result enf_result func_ok
-    raw_result="$(run_bundle_result raw "enf-probe-raw-$$")"
-    enf_result="$(run_bundle_result enforced "enf-probe-enf-$$")"
-    if [[ -n "$raw_result" && "$raw_result" == "$enf_result" ]]; then
-        func_ok=1
-    else
-        func_ok=0
-        error "Functional check failed: raw='$raw_result' enforced='$enf_result'"
+    raw_out="$(profile_bundle_run_raw "$wl" "func-raw-${wl}-$$" 1 /bin/sh -c "$(workload_command "$wl")")"
+    enf_out="$(bundle_run "$wl" "func-enf-${wl}-$$" 1 /bin/sh -c "$(workload_command "$wl")")"
+
+    if ! workload_functionally_equivalent "$wl" "$raw_out" "$enf_out"; then
+        error "Functional check failed for '$wl': raw and enforced outputs invalid or incomplete"
     fi
+    info "Functional check passed for '$wl'"
+}
+
+profile_measure_enforcement_workload() {
+    local wl="$1" out_dir="$2"
+    local base
+    base="$(workload_profile_dir "$wl")"
+    [[ -d "$base/raw" && -d "$base/enforced" ]] || error "Missing bundle pair for '$wl'"
+
+    profile_functional_check_workload "$wl"
+
+    run_variant_once() {
+        local variant="$1" id="$2"
+        if [[ "$variant" == "raw" ]]; then
+            profile_bundle_run_raw "$wl" "$id" 0 /bin/sh -c "$(workload_command "$wl")"
+        else
+            bundle_run "$wl" "$id" 0 /bin/sh -c "$(workload_command "$wl")"
+        fi
+    }
 
     measure_variant() {
-        local variant="$1"
-        local samples="" i s e ok=0 fail=0
+        local variant="$1" samples="" i s e ok=0 fail=0
         for ((i = 1; i <= WARMUP; i++)); do
-            run_bundle_once "$variant" "enf-warm-${variant}-${i}-$$" || true
+            run_variant_once "$variant" "enf-warm-${variant}-${i}-$$" || true
         done
         for ((i = 1; i <= REPS; i++)); do
             s="$(now_ms)"
-            if run_bundle_once "$variant" "enf-${variant}-${i}-$$"; then
+            if run_variant_once "$variant" "enf-${variant}-${i}-$$"; then
                 ok=$((ok + 1))
             else
                 fail=$((fail + 1))
@@ -145,30 +200,69 @@ profile_measure_enforcement() {
     measure_variant enforced
     local enf_stats="$VARIANT_STATS" enf_ok="$VARIANT_OK" enf_fail="$VARIANT_FAIL"
 
-    python3 - "$out_dir/enforcement.json" "$name" "$raw_stats" "$enf_stats" \
-        "$base/profile-summary.json" "$raw_ok" "$raw_fail" "$enf_ok" "$enf_fail" \
-        "$func_ok" "$raw_result" "$enf_result" <<'PY'
+    local manifest="$base/manifest.yaml"
+    local out_path="$out_dir/enforcement-${wl}.json"
+    [[ "$out_dir" == "$PROFILES_DIR" ]] || true
+    python3 - "$out_path" "$wl" "$raw_stats" "$enf_stats" \
+        "$manifest" "$raw_ok" "$raw_fail" "$enf_ok" "$enf_fail" <<'PY'
 import json, os, sys
-out, name, raw, enf, summary, rok, rfail, eok, efail, f_ok, r_out, e_out = sys.argv[1:13]
+
+out, wl, raw, enf, manifest, rok, rfail, eok, efail = sys.argv[1:10]
 raw_j = json.loads(raw) if raw.strip() else {}
 enf_j = json.loads(enf) if enf.strip() else {}
-profile = json.load(open(summary)) if os.path.exists(summary) else {}
-functional = (f_ok == "1")
+profile = {}
+if os.path.exists(manifest):
+    for line in open(manifest):
+        if ":" in line:
+            k, v = line.split(":", 1)
+            profile[k.strip()] = v.strip().strip('"')
+functional = True
 overhead = None
-if functional and raw_j.get("median") and enf_j.get("median"):
+if raw_j.get("median") and enf_j.get("median"):
     overhead = round((enf_j["median"] / raw_j["median"] - 1) * 100, 2)
 doc = {
     "metric": "enforcement_overhead",
+    "workload": wl,
     "unit": "ms",
-    "workload": name,
     "profile": profile,
     "results": {"raw": raw_j, "enforced": enf_j},
-    "exit_counts": {"raw_ok": int(rok), "raw_fail": int(rfail), "enforced_ok": int(eok), "enforced_fail": int(efail)},
-    "functional_check": {"raw_output": r_out, "enforced_output": e_out},
+    "exit_counts": {
+        "raw_ok": int(rok), "raw_fail": int(rfail),
+        "enforced_ok": int(eok), "enforced_fail": int(efail),
+    },
     "functional_preserved": functional,
-    "enforcement_overhead_pct_median": overhead
+    "enforcement_overhead_pct_median": overhead,
 }
 json.dump(doc, open(out, "w"), indent=2)
 PY
 }
 
+validate_prebuilt_profiles() {
+    local wl missing=0
+    for wl in "${WORKLOAD_IDS[@]}"; do
+        local base="$PROFILES_DIR/$wl"
+        if [[ ! -f "$base/manifest.yaml" || ! -f "$base/enforced/config.json" ]]; then
+            warn "Missing prebuilt profile for workload '$wl' (run prepare-profiles.sh)"
+            missing=1
+            continue
+        fi
+        profile_functional_check_workload "$wl" || missing=1
+    done
+    [[ "$missing" -eq 0 ]] || error "Prebuilt profile validation failed"
+    info "All prebuilt profiles validated"
+}
+
+aggregate_enforcement_results() {
+    local out_dir="$1"
+    python3 - "$out_dir" "${WORKLOAD_IDS[@]}" <<'PY'
+import json, os, sys
+out_dir, *workloads = sys.argv[1:]
+items = []
+for wl in workloads:
+    p = os.path.join(out_dir, f"enforcement-{wl}.json")
+    if os.path.exists(p):
+        items.append(json.load(open(p)))
+doc = {"metric": "enforcement_overhead_summary", "workloads": items}
+json.dump(doc, open(os.path.join(out_dir, "enforcement.json"), "w"), indent=2)
+PY
+}

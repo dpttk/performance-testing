@@ -1,0 +1,3 @@
+---- start 2026-06-15T22:25:12Z pid=31175 cgroup=/sys/fs/cgroup/user.slice/user-1000.slice/scan-network-iperf-31011 id=15001 via /usr/sbin/capable-bpfcc ----
+scan-cap-trace-start: tracer pid=31228 cgroupmap=/sys/fs/bpf/runc-scan/scan-network-iperf-31011/cgroup_filter
+2026-06-15T22:25:46Z scan-cap-trace-stop: SIGKILL sent to pid=31228 after 2s

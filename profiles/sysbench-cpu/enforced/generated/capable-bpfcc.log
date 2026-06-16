@@ -1,0 +1,3 @@
+---- start 2026-06-15T22:23:17Z pid=29675 cgroup=/sys/fs/cgroup/user.slice/user-1000.slice/scan-sysbench-cpu-29382 id=14290 via /usr/sbin/capable-bpfcc ----
+scan-cap-trace-start: tracer pid=29728 cgroupmap=/sys/fs/bpf/runc-scan/scan-sysbench-cpu-29382/cgroup_filter
+2026-06-15T22:23:29Z scan-cap-trace-stop: SIGKILL sent to pid=29728 after 2s

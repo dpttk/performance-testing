@@ -1,0 +1,7 @@
+workload: "network-iperf"
+image: "networkstatic/iperf3@sha256:07dcca91c0e47d82d83d91de8c3d46b840eef4180499456b4fa8d6dadb46b6c8"
+command: "iperf3 -s & sleep 2; iperf3 -c 127.0.0.1 -t 30 -P 1 -J; kill $(jobs -p) 2>/dev/null || true"
+scan_ms: 34879
+seccomp_default_action: "SCMP_ACT_ERRNO"
+seccomp_allowed_syscalls: 77
+apparmor_profile: "runc_scan_scan_network_iperf_31011"

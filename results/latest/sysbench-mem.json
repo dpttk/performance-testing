@@ -1,37 +1,58 @@
 {
   "metric": "sysbench_memory",
   "unit": "MiB_per_sec",
-  "description": "sysbench memory transfer MiB/s (higher is better)",
+  "description": "sysbench memory transfer MiB per second",
   "results": {
     "stock": {
-      "count": 2,
-      "min": 6154.0,
-      "median": 6158.02,
-      "mean": 6158.02,
-      "p95": 6161.638,
-      "p99": 6161.96,
-      "max": 6162.04,
-      "stddev": 4.02
+      "count": 50,
+      "min": 6123456.39,
+      "median": 6285693.025,
+      "mean": 6268202.848,
+      "p95": 6313693.439,
+      "p99": 6323778.189,
+      "max": 6325857.68,
+      "stddev": 51904.05
     },
     "gvisor": {
-      "count": 2,
-      "min": 1656.7,
-      "median": 1667.125,
-      "mean": 1667.125,
-      "p95": 1676.507,
-      "p99": 1677.341,
-      "max": 1677.55,
-      "stddev": 10.425
+      "count": 50,
+      "min": 1687881.91,
+      "median": 1719072.215,
+      "mean": 1723081.487,
+      "p95": 1762526.049,
+      "p99": 1776762.557,
+      "max": 1787673.5,
+      "stddev": 22328.484
     },
     "docker": {
-      "count": 2,
-      "min": 6115.01,
-      "median": 6143.44,
-      "mean": 6143.44,
-      "p95": 6169.027,
-      "p99": 6171.301,
-      "max": 6171.87,
-      "stddev": 28.43
+      "count": 50,
+      "min": 6144251.94,
+      "median": 6288486.755,
+      "mean": 6272115.688,
+      "p95": 6309098.126,
+      "p99": 6318366.725,
+      "max": 6319935.97,
+      "stddev": 45875.044
+    },
+    "hardened_enforced": {
+      "count": 50,
+      "min": 6140319.99,
+      "median": 6286345.63,
+      "mean": 6271275.526,
+      "p95": 6311035.918,
+      "p99": 6312046.038,
+      "max": 6312305.91,
+      "stddev": 41989.232
     }
+  },
+  "cold_start_ms": {
+    "stock": 536,
+    "gvisor": 1787,
+    "docker": 974,
+    "hardened_enforced": 418
+  },
+  "meta": {
+    "workload": "sysbench-mem",
+    "image": "docker.io/severalnines/sysbench:latest",
+    "profile": "/home/dpttk/performance-evaluation/profiles/sysbench-mem"
   }
 }

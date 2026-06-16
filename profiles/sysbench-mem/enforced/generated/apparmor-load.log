@@ -1,0 +1,6 @@
+---- load 2026-06-15T22:24:30Z ----
+apparmor_parser -r ok
+---- unload 2026-06-15T22:24:33Z ----
+audit source=journalctl err=<nil> bytes=2428
+audit events for runc_scan_scan_sysbench_mem_29382: 1
+audit rules appended: 1

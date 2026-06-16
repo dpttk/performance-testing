@@ -1,0 +1,3 @@
+---- start 2026-06-15T22:36:19Z pid=36746 cgroup=/sys/fs/cgroup/user.slice/user-1000.slice/scan-redis-app-36620 id=17371 via /usr/sbin/capable-bpfcc ----
+scan-cap-trace-start: tracer pid=36797 cgroupmap=/sys/fs/bpf/runc-scan/scan-redis-app-36620/cgroup_filter
+2026-06-15T22:36:43Z scan-cap-trace-stop: SIGKILL sent to pid=36797 after 2s

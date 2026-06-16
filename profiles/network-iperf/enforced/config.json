@@ -1,0 +1,272 @@
+{
+  "ociVersion": "1.3.0",
+  "process": {
+    "user": {
+      "uid": 65532,
+      "gid": 65532
+    },
+    "args": [
+      "/bin/sh",
+      "-c",
+      "iperf3 -s & sleep 2; iperf3 -c 127.0.0.1 -t 30 -P 1 -J; kill $(jobs -p) 2>/dev/null || true"
+    ],
+    "env": [
+      "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+      "TERM=xterm"
+    ],
+    "cwd": "/",
+    "capabilities": {},
+    "rlimits": [
+      {
+        "type": "RLIMIT_NOFILE",
+        "hard": 1024,
+        "soft": 1024
+      }
+    ],
+    "noNewPrivileges": true,
+    "apparmorProfile": "runc_scan_scan_network_iperf_31011"
+  },
+  "root": {
+    "path": "/home/dpttk/performance-evaluation/profiles/network-iperf/rootfs"
+  },
+  "hostname": "runc",
+  "mounts": [
+    {
+      "destination": "/proc",
+      "type": "proc",
+      "source": "proc"
+    },
+    {
+      "destination": "/dev",
+      "type": "tmpfs",
+      "source": "tmpfs",
+      "options": [
+        "nosuid",
+        "strictatime",
+        "mode=755",
+        "size=65536k"
+      ]
+    },
+    {
+      "destination": "/dev/pts",
+      "type": "devpts",
+      "source": "devpts",
+      "options": [
+        "nosuid",
+        "noexec",
+        "newinstance",
+        "ptmxmode=0666",
+        "mode=0620",
+        "gid=5"
+      ]
+    },
+    {
+      "destination": "/dev/shm",
+      "type": "tmpfs",
+      "source": "shm",
+      "options": [
+        "nosuid",
+        "noexec",
+        "nodev",
+        "mode=1777",
+        "size=65536k"
+      ]
+    },
+    {
+      "destination": "/dev/mqueue",
+      "type": "mqueue",
+      "source": "mqueue",
+      "options": [
+        "nosuid",
+        "noexec",
+        "nodev"
+      ]
+    },
+    {
+      "destination": "/sys",
+      "type": "sysfs",
+      "source": "sysfs",
+      "options": [
+        "nosuid",
+        "noexec",
+        "nodev",
+        "ro"
+      ]
+    },
+    {
+      "destination": "/sys/fs/cgroup",
+      "type": "cgroup",
+      "source": "cgroup",
+      "options": [
+        "nosuid",
+        "noexec",
+        "nodev",
+        "relatime",
+        "ro"
+      ]
+    }
+  ],
+  "linux": {
+    "resources": {
+      "devices": [
+        {
+          "allow": false,
+          "access": "rwm"
+        }
+      ]
+    },
+    "namespaces": [
+      {
+        "type": "pid"
+      },
+      {
+        "type": "network"
+      },
+      {
+        "type": "ipc"
+      },
+      {
+        "type": "uts"
+      },
+      {
+        "type": "mount"
+      },
+      {
+        "type": "cgroup"
+      }
+    ],
+    "seccomp": {
+      "defaultAction": "SCMP_ACT_ERRNO",
+      "architectures": [
+        "SCMP_ARCH_X86_64"
+      ],
+      "syscalls": [
+        {
+          "names": [
+            "accept",
+            "access",
+            "arch_prctl",
+            "bind",
+            "brk",
+            "capget",
+            "capset",
+            "chdir",
+            "clock_gettime",
+            "clock_nanosleep",
+            "clone",
+            "close",
+            "close_range",
+            "connect",
+            "dup2",
+            "epoll_ctl",
+            "epoll_pwait",
+            "execve",
+            "exit",
+            "exit_group",
+            "faccessat2",
+            "fchown",
+            "fcntl",
+            "fstat",
+            "fstatfs",
+            "ftruncate",
+            "futex",
+            "getcwd",
+            "getdents64",
+            "getegid",
+            "geteuid",
+            "getgid",
+            "getpeername",
+            "getpid",
+            "getppid",
+            "getrandom",
+            "getrusage",
+            "getsockname",
+            "getsockopt",
+            "getuid",
+            "listen",
+            "lseek",
+            "madvise",
+            "mmap",
+            "mprotect",
+            "munmap",
+            "nanosleep",
+            "newfstatat",
+            "openat",
+            "openat2",
+            "pipe2",
+            "prctl",
+            "pread64",
+            "prlimit64",
+            "pselect6",
+            "read",
+            "recvfrom",
+            "rseq",
+            "rt_sigaction",
+            "rt_sigprocmask",
+            "rt_sigreturn",
+            "set_robust_list",
+            "set_tid_address",
+            "setgid",
+            "setgroups",
+            "setsockopt",
+            "setuid",
+            "sigaltstack",
+            "statx",
+            "tgkill",
+            "uname",
+            "unlink",
+            "vfork",
+            "wait4",
+            "write"
+          ],
+          "action": "SCMP_ACT_ALLOW"
+        },
+        {
+          "names": [
+            "socket"
+          ],
+          "action": "SCMP_ACT_ALLOW",
+          "args": [
+            {
+              "index": 0,
+              "value": 2,
+              "op": "SCMP_CMP_EQ"
+            }
+          ]
+        },
+        {
+          "names": [
+            "socket"
+          ],
+          "action": "SCMP_ACT_ALLOW",
+          "args": [
+            {
+              "index": 0,
+              "value": 10,
+              "op": "SCMP_CMP_EQ"
+            }
+          ]
+        }
+      ]
+    },
+    "maskedPaths": [
+      "/proc/acpi",
+      "/proc/asound",
+      "/proc/kcore",
+      "/proc/keys",
+      "/proc/latency_stats",
+      "/proc/timer_list",
+      "/proc/timer_stats",
+      "/proc/sched_debug",
+      "/sys/firmware",
+      "/proc/scsi"
+    ],
+    "readonlyPaths": [
+      "/proc/bus",
+      "/proc/fs",
+      "/proc/irq",
+      "/proc/sys",
+      "/proc/sysrq-trigger"
+    ]
+  }
+}

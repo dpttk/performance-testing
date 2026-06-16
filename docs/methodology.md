@@ -1,30 +1,73 @@
-# Methodology Notes
+# Methodology
 
-## Comparison intent
+## Experimental design
 
-Primary research target is your runtime under enforced security profiles
-(`hardened_enforced`). Baselines are `stock`, `gvisor`, and `docker`.
+### Controlled variables
 
-## Mandatory profile flow
+- Workload commands (defined in `scripts/lib/workloads.sh`)
+- Sampling policy (`WARMUP`, `REPS`)
+- Container images (pinned at profile preparation time)
+- Host software versions (recorded in `host-metadata.txt`)
 
-Before any benchmark numbers are accepted:
+### Independent variables
 
-1. run synthetic workload in `--security-scan`
-2. build `raw` and `enforced` bundles
-3. verify functional equivalence using `RESULT=...`
-4. measure overhead only when functional equivalence is true
+- Runtime alias (`hardened_enforced`, `stock`, `gvisor`, `docker`)
+- Launcher backend (bundle, containerd/ctr, Docker)
 
-## Performance metric policy
+### Dependent variables
 
-- startup latency: warmup + repeated samples (`WARMUP`/`REPS`)
-- sysbench CPU/memory: repeated samples
-- network and Redis: repeated runs through same runtime abstraction
-- reporting: median, p95, p99, stddev
+- Throughput (workload-specific units)
+- Cold-start wall time (first measured repetition, milliseconds)
+- Enforcement overhead (preparation phase: raw vs enforced bundle execution time)
+
+## Phases
+
+### Phase A — Profile preparation
+
+Executed via `scripts/prepare-profiles.sh`:
+
+1. Export container rootfs from the workload image.
+2. Run `runc-hardened --security-scan` against the workload command.
+3. Store `raw/` and `enforced/` bundle configurations under `profiles/<workload>/`.
+4. Verify functional equivalence (parsed output fingerprint must match).
+5. Optionally measure enforcement overhead; write `profiles/enforcement-<workload>.json`.
+
+Artifacts under `profiles/` are committed to the repository. Rootfs trees are
+exported at runtime and are not versioned.
+
+### Phase B — Measurement
+
+Executed via `scripts/run.sh`:
+
+1. Verify host prerequisites and prebuilt profiles.
+2. Execute each workload on every available runtime.
+3. Collect `WARMUP` discarded samples followed by `REPS` measured samples.
+4. Aggregate results into JSON, Markdown, CSV, and plots.
+
+No security scanning occurs during Phase B.
+
+## Statistical policy
+
+| Statistic | Usage |
+|-----------|-------|
+| Median | Primary reported value |
+| p95 | Tail latency / throughput |
+| stddev | Run-to-run variance |
+| Cold-start | Wall time of the first measured repetition only |
 
 ## Launcher asymmetry
 
-`stock` is launched via containerd/`ctr`.
-`gvisor` is launched via Docker (`runsc`) on this host due to containerd shim
-stability constraints.
-Interpret absolute numbers with this launcher difference in mind.
+| Runtime | Launcher | Rationale |
+|---------|----------|-----------|
+| `stock` | containerd / `ctr` | Native runc deployment path |
+| `hardened_enforced` | `runc run --bundle` | Required to apply scan-generated OCI profiles |
+| `gvisor`, `docker` | Docker CLI | gVisor runsc shim unstable via containerd on the reference host |
 
+Launcher differences are recorded in `host-metadata.txt` and report tables.
+Cross-launcher comparisons state this limitation explicitly.
+
+## Limitations
+
+- Loopback network and Redis benchmarks measure in-container stack cost, not external network I/O.
+- VM hosts without cpufreq control exhibit higher run-to-run variance.
+- Stock and hardened runc versions are aligned to the same upstream base ref (`RUNC_BASE_REF`) but the hardened binary includes fork-specific changes.

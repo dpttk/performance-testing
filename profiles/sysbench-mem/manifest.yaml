@@ -1,0 +1,7 @@
+workload: "sysbench-mem"
+image: "severalnines/sysbench@sha256:64cd003bfa21eaab22f985e7b95f90d21a970229f5f628718657dd1bae669abd"
+command: "sysbench memory --memory-total-size=2G --threads=1 run"
+scan_ms: 3417
+seccomp_default_action: "SCMP_ACT_ERRNO"
+seccomp_allowed_syscalls: 54
+apparmor_profile: "runc_scan_scan_sysbench_mem_29382"

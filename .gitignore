@@ -13,7 +13,14 @@ config.env
 !/results/latest/
 !/results/latest/**
 
-# Generated scan bundles (contain exported rootfs trees + profiles)
+# Profile runtime caches (committed: manifest, raw/, enforced/)
+profiles/*/rootfs/
+profiles/*/runs/
+profiles/*/config.json
+profiles/*/config.raw.json
+profiles/*/generated/
+
+# Legacy generated bundles
 /bundles/scanned/
 
 # Host-specific containerd backups

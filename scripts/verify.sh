@@ -26,16 +26,13 @@ check "hardened runc binary" test -x "$RUNC_HARDENED_BIN" || FAIL=1
 check "gVisor runsc binary" test -x "$RUNSC_BIN" || FAIL=1
 check "containerd socket" test -S "$CONTAINERD_SOCKET" || FAIL=1
 check "containerd namespace" ctr_cmd namespaces ls || FAIL=1
-busybox_present() { ctr_cmd images ls -q 2>/dev/null | grep -q busybox; }
-check "busybox image" busybox_present || FAIL=1
-check "docker engine" docker_cmd info || warn "docker not available (docker runtime + gVisor will be skipped)"
+check "docker engine" docker_cmd info || warn "docker not available (docker + gVisor will be skipped)"
 
-# Benchmark + scan tooling (warn-only; metrics degrade gracefully when absent).
 for tool in iperf3 redis-benchmark python3; do
     command -v "$tool" >/dev/null 2>&1 && info "OK  tool $tool" || warn "missing tool $tool"
 done
 for tool in bpftool capable-bpfcc apparmor_parser; do
-    command -v "$tool" >/dev/null 2>&1 && info "OK  scan tool $tool" || warn "missing scan tool $tool (--security-scan may be limited)"
+    command -v "$tool" >/dev/null 2>&1 && info "OK  scan tool $tool" || warn "missing scan tool $tool"
 done
 if command -v oci-seccomp-bpf-hook >/dev/null 2>&1 || [[ -x /usr/libexec/oci/hooks.d/oci-seccomp-bpf-hook ]]; then
     info "OK  oci-seccomp-bpf-hook"
@@ -43,13 +40,12 @@ else
     warn "missing oci-seccomp-bpf-hook (seccomp profile generation disabled)"
 fi
 
-# Smoke-test only baseline runtimes (enforced runtime is validated in run.sh profile flow).
 for alias in $RUNTIMES; do
     if ! runtime_available "$alias"; then
         warn "SKIP runtime '$alias' (not available on this host)"
         continue
     fi
-    if run_ephemeral "$alias" "verify-${alias}-$$" "$BUSYBOX_IMAGE" /bin/true; then
+    if smoke_test_runtime "$alias"; then
         info "OK  smoke test ($alias / $(runtime_launcher "$alias"))"
     else
         warn "FAIL smoke test ($alias / $(runtime_launcher "$alias"))"
@@ -58,7 +54,7 @@ for alias in $RUNTIMES; do
 done
 
 if [[ "$FAIL" -ne 0 ]]; then
-    error "Verification failed. Run sudo ./scripts/restore-containerd.sh then sudo ./scripts/install-containerd.sh"
+    error "Verification failed. Run sudo ./scripts/setup.sh and sudo ./scripts/prepare-profiles.sh"
 fi
 
 info "Host verification passed."

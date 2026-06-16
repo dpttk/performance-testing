@@ -1,12 +1,9 @@
 #!/usr/bin/env bash
-# Performance benchmark suite (core metrics).
-#
-# Runs the baseline runtime matrix (stock, gvisor, docker by default) and
-# writes JSON metrics under results/perf-<timestamp>/.
+# Performance benchmark suite.
 #
 # Usage:
 #   sudo ./scripts/benchmark-perf.sh
-#   sudo ./scripts/benchmark-perf.sh latency cpu_mem network app
+#   sudo ./scripts/benchmark-perf.sh sysbench-cpu network-iperf
 
 set -euo pipefail
 
@@ -19,7 +16,7 @@ source "$SCRIPT_DIR/lib/benchmarks.sh"
 require_root
 
 METRICS=("$@")
-[[ ${#METRICS[@]} -eq 0 ]] && METRICS=(latency cpu_mem network app)
+[[ ${#METRICS[@]} -eq 0 ]] && METRICS=("${WORKLOAD_IDS[@]}")
 
 OUT_DIR="${RUN_DIR:-$(ensure_results_dir "perf-$(date +%Y%m%d-%H%M%S)")}"
 mkdir -p "$OUT_DIR"
@@ -28,4 +25,3 @@ info "Performance results: $OUT_DIR"
 run_perf_suite "$OUT_DIR" "${METRICS[@]}"
 
 info "Performance suite complete: $OUT_DIR"
-info "Aggregate with: sudo ./scripts/report.sh $OUT_DIR"

@@ -1,0 +1,6 @@
+---- load 2026-06-15T22:36:19Z ----
+apparmor_parser -r ok
+---- unload 2026-06-15T22:36:43Z ----
+audit source=journalctl err=<nil> bytes=16166
+audit events for runc_scan_scan_redis_app_36620: 3
+audit rules appended: 3

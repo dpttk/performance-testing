@@ -1,37 +1,58 @@
 {
   "metric": "redis_get",
   "unit": "requests_per_sec",
-  "description": "redis-benchmark GET throughput, server+client loopback (higher is better)",
+  "description": "redis-benchmark GET throughput",
   "results": {
     "stock": {
-      "count": 8,
-      "min": 58139.54,
-      "median": 62631.57,
-      "mean": 62203.25,
-      "p95": 64281.391,
-      "p99": 64358.422,
-      "max": 64377.68,
-      "stddev": 1890.37
+      "count": 50,
+      "min": 62546.91,
+      "median": 63959.075,
+      "mean": 64014.422,
+      "p95": 65096.538,
+      "p99": 65425.15,
+      "max": 65496.46,
+      "stddev": 709.191
     },
     "gvisor": {
-      "count": 8,
-      "min": 17421.6,
-      "median": 17564.405,
-      "mean": 17554.495,
-      "p95": 17663.707,
-      "p99": 17675.349,
-      "max": 17678.26,
-      "stddev": 80.631
+      "count": 50,
+      "min": 17162.08,
+      "median": 17593.555,
+      "mean": 17587.929,
+      "p95": 17727.07,
+      "p99": 17749.921,
+      "max": 17760.73,
+      "stddev": 100.341
     },
     "docker": {
-      "count": 8,
-      "min": 57142.86,
-      "median": 61592.955,
-      "mean": 61405.518,
-      "p95": 65118.575,
-      "p99": 65197.627,
-      "max": 65217.39,
-      "stddev": 3025.821
+      "count": 50,
+      "min": 60248.22,
+      "median": 62050.14,
+      "mean": 61985.438,
+      "p95": 63206.275,
+      "p99": 63347.43,
+      "max": 63355.29,
+      "stddev": 751.222
+    },
+    "hardened_enforced": {
+      "count": 50,
+      "min": 59701.49,
+      "median": 62223.88,
+      "mean": 62078.176,
+      "p95": 63334.925,
+      "p99": 63508.518,
+      "max": 63524.33,
+      "stddev": 934.059
     }
+  },
+  "cold_start_ms": {
+    "stock": 16678,
+    "gvisor": 57987,
+    "docker": 17693,
+    "hardened_enforced": 17548
+  },
+  "meta": {
+    "workload": "redis-app",
+    "image": "docker.io/library/redis:7-alpine",
+    "profile": "/home/dpttk/performance-evaluation/profiles/redis-app"
   }
 }

@@ -1,5 +1,5 @@
 host=performance-testing
-date=2026-06-15T00:51:20+00:00
+date=2026-06-15T22:56:04+00:00
 kernel=6.8.0-124-generic
 arch=x86_64
 cpu_model=AMD EPYC-Genoa Processor
@@ -17,5 +17,10 @@ runc_stock=runc version 1.5.0-rc.1+dev
 runc_hardened=runc version 1.4.0-rc.1+dev
 runsc=runsc version release-20260601.0
 kata=missing
-runtimes_under_test=stock gvisor docker
-reps=8 warmup=2
+runtimes_under_test=stock gvisor docker hardened_enforced
+reps=50 warmup=10
+profiles_dir=/home/dpttk/performance-evaluation/profiles
+launcher_stock=ctr+/usr/local/sbin/runc-stock
+launcher_hardened_enforced=/usr/local/sbin/runc-hardened run --bundle
+launcher_gvisor=docker(--runtime=runsc)
+launcher_docker=docker(default)

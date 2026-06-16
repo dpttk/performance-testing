@@ -1,37 +1,58 @@
 {
   "metric": "sysbench_cpu",
   "unit": "events_per_sec",
-  "description": "sysbench CPU events/s (higher is better)",
+  "description": "sysbench CPU events per second",
   "results": {
     "stock": {
-      "count": 2,
-      "min": 1636.54,
-      "median": 1636.84,
-      "mean": 1636.84,
-      "p95": 1637.11,
-      "p99": 1637.134,
-      "max": 1637.14,
-      "stddev": 0.3
+      "count": 50,
+      "min": 1629.81,
+      "median": 1635.74,
+      "mean": 1635.628,
+      "p95": 1636.547,
+      "p99": 1636.686,
+      "max": 1636.75,
+      "stddev": 0.988
     },
     "gvisor": {
-      "count": 2,
-      "min": 1609.43,
-      "median": 1609.505,
-      "mean": 1609.505,
-      "p95": 1609.572,
-      "p99": 1609.578,
-      "max": 1609.58,
-      "stddev": 0.075
+      "count": 50,
+      "min": 1593.32,
+      "median": 1602.285,
+      "mean": 1602.175,
+      "p95": 1608.53,
+      "p99": 1609.479,
+      "max": 1609.92,
+      "stddev": 5.399
     },
     "docker": {
-      "count": 2,
-      "min": 1636.83,
-      "median": 1636.97,
-      "mean": 1636.97,
-      "p95": 1637.096,
-      "p99": 1637.107,
+      "count": 50,
+      "min": 1629.93,
+      "median": 1635.705,
+      "mean": 1635.514,
+      "p95": 1636.832,
+      "p99": 1637.09,
       "max": 1637.11,
-      "stddev": 0.14
+      "stddev": 1.222
+    },
+    "hardened_enforced": {
+      "count": 50,
+      "min": 1629.12,
+      "median": 1635.11,
+      "mean": 1634.879,
+      "p95": 1635.707,
+      "p99": 1636.071,
+      "max": 1636.1,
+      "stddev": 1.205
     }
+  },
+  "cold_start_ms": {
+    "stock": 10183,
+    "gvisor": 10597,
+    "docker": 10527,
+    "hardened_enforced": 10089
+  },
+  "meta": {
+    "workload": "sysbench-cpu",
+    "image": "docker.io/severalnines/sysbench:latest",
+    "profile": "/home/dpttk/performance-evaluation/profiles/sysbench-cpu"
   }
 }

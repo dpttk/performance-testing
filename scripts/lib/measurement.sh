@@ -58,6 +58,11 @@ capture_host_metadata() {
         echo "kata=$(command -v containerd-shim-kata-v2 >/dev/null 2>&1 && echo present || echo missing)"
         echo "runtimes_under_test=$RUNTIMES"
         echo "reps=$REPS warmup=$WARMUP"
+        echo "profiles_dir=$PROFILES_DIR"
+        echo "launcher_stock=$(runtime_launcher stock)"
+        echo "launcher_hardened_enforced=$(runtime_launcher hardened_enforced)"
+        echo "launcher_gvisor=$(runtime_launcher gvisor)"
+        echo "launcher_docker=$(runtime_launcher docker)"
     } >"$out"
 }
 

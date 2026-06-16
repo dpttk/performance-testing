@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Unified enforced-first pipeline:
-#   verify -> profile scan/apply/functional-check -> perf benchmarks -> report
+# Measurement pipeline (no security scanning during this phase):
+#   verify -> validate prebuilt profiles -> performance benchmarks -> report
 
 set -euo pipefail
 
@@ -17,17 +17,19 @@ METRICS=()
 for arg in "$@"; do
     case "$arg" in
         --quick) QUICK=1 ;;
-        latency|cpu_mem|network|app) METRICS+=("$arg") ;;
+        sysbench-cpu|sysbench-mem|network-iperf|redis-app) METRICS+=("$arg") ;;
         -h|--help)
             cat <<'EOF'
-Usage: sudo ./scripts/run.sh [--quick] [latency cpu_mem network app]
+Usage: sudo ./scripts/run.sh [--quick] [sysbench-cpu sysbench-mem network-iperf redis-app]
 
-Runs the complete enforced-first campaign:
-  1) host/runtime verification
-  2) synthetic profile generation with --security-scan
-  3) functional check + enforcement overhead measurement
-  4) baseline performance benchmarks (stock/gvisor/docker)
-  5) aggregate Markdown + CSV report
+Measurement campaign (profiles must exist under profiles/):
+  1) verify host/runtime prerequisites
+  2) validate prebuilt profiles (functional check per workload)
+  3) performance benchmarks (all runtimes, identical workloads)
+  4) aggregate Markdown + CSV report + plots
+
+Generate profiles first:
+  sudo ./scripts/prepare-profiles.sh
 EOF
             exit 0
             ;;
@@ -36,42 +38,43 @@ EOF
 done
 
 if [[ "$QUICK" -eq 1 ]]; then
-    export REPS=8 WARMUP=2 SYSBENCH_REPS=2 IPERF_DURATION=4 REDIS_BENCH_REQUESTS=30000
-    info "Quick mode enabled."
+    export REPS=8 WARMUP=2 IPERF_DURATION=4 REDIS_BENCH_REQUESTS=30000
+    info "Quick mode enabled (results will not be published to results/latest/)."
 fi
 
 RUN_DIR="$(ensure_results_dir "campaign-$(date +%Y%m%d-%H%M%S)")"
 export RUN_DIR
 mkdir -p "$RUN_DIR"
 
-info "=== [1/5] Verify host prerequisites ==="
+info "=== [1/4] Verify host prerequisites ==="
 "$SCRIPT_DIR/verify.sh"
 
-info "=== [2/5] Scan/apply profile for synthetic workload ==="
-profile_generate_bundle "$PROFILE_NAME" "$PROFILE_IMAGE" "$PROFILE_COMMAND"
+info "=== [2/4] Validate prebuilt profiles ==="
+validate_prebuilt_profiles
 
-info "=== [3/5] Functional check + enforcement overhead ==="
-profile_measure_enforcement "$PROFILE_NAME" "$RUN_DIR"
-
-info "=== [4/5] Baseline performance benchmarks ==="
+info "=== [3/4] Performance benchmarks ==="
 if [[ ${#METRICS[@]} -eq 0 ]]; then
     "$SCRIPT_DIR/benchmark-perf.sh"
 else
     "$SCRIPT_DIR/benchmark-perf.sh" "${METRICS[@]}"
 fi
 
-info "=== [5/5] Aggregate report ==="
+info "=== [4/4] Aggregate report ==="
 "$SCRIPT_DIR/report.sh" "$RUN_DIR"
 
 cp "$PERF_DIR/config.env" "$RUN_DIR/config.env.used" 2>/dev/null || true
 
-LATEST_DIR="$PERF_DIR/results/latest"
-mkdir -p "$LATEST_DIR"
-rsync -a --delete "$RUN_DIR/" "$LATEST_DIR/" 2>/dev/null || {
-    rm -rf "$LATEST_DIR"
+if [[ "$QUICK" -eq 0 ]]; then
+    LATEST_DIR="$PERF_DIR/results/latest"
     mkdir -p "$LATEST_DIR"
-    cp -a "$RUN_DIR/." "$LATEST_DIR/"
-}
-info "Published snapshot: $LATEST_DIR"
+    rsync -a --delete "$RUN_DIR/" "$LATEST_DIR/" 2>/dev/null || {
+        rm -rf "$LATEST_DIR"
+        mkdir -p "$LATEST_DIR"
+        cp -a "$RUN_DIR/." "$LATEST_DIR/"
+    }
+    info "Published snapshot: $LATEST_DIR"
+else
+    info "Quick run complete (not published to results/latest/): $RUN_DIR"
+fi
 
 info "Done: $RUN_DIR/report.md"

@@ -1,12 +1,14 @@
-# Benchmark report
+# Benchmark Report
 
-Source: `/home/dpttk/performance-evaluation/results/campaign-20260615-005104`
+Source: `/home/dpttk/performance-evaluation/results/campaign-20260615-225323`
 
-## Host
+Primary subject: **hardened enforced (bundle)**
+
+## Test Environment
 
 ```
 host=performance-testing
-date=2026-06-15T00:51:20+00:00
+date=2026-06-15T22:56:04+00:00
 kernel=6.8.0-124-generic
 arch=x86_64
 cpu_model=AMD EPYC-Genoa Processor
@@ -24,91 +26,89 @@ runc_stock=runc version 1.5.0-rc.1+dev
 runc_hardened=runc version 1.4.0-rc.1+dev
 runsc=runsc version release-20260601.0
 kata=missing
-runtimes_under_test=stock gvisor docker
-reps=8 warmup=2
+runtimes_under_test=stock gvisor docker hardened_enforced
+reps=50 warmup=10
+profiles_dir=/home/dpttk/performance-evaluation/profiles
+launcher_stock=ctr+/usr/local/sbin/runc-stock
+launcher_hardened_enforced=/usr/local/sbin/runc-hardened run --bundle
+launcher_gvisor=docker(--runtime=runsc)
+launcher_docker=docker(default)
 ```
 
-## Performance metrics
+## Performance Metrics
 
-Values are medians over repeated samples; overhead is relative to `stock` (positive = slower/worse for latency, lower throughput shown as % of stock).
-
-
-### Startup latency (ms)
-
-| Runtime | median | p95 | stddev | vs stock |
-|---|---|---|---|---|
-| stock runc (ctr) | 169.00 | 179.90 | 7.79 | +0.0% |
-| hardened enforced | 95.50 | 98.65 | 2.29 | -43.5% |
-| gVisor | 512.50 | 523.00 | 12.09 | +203.3% |
-| Docker default | 530.50 | 581.50 | 66.69 | +213.9% |
+Medians over repeated samples. 'vs enforced' expresses baseline deviation from the primary subject (positive latency = slower than enforced; throughput shown as % of enforced).
 
 
 ### CPU (sysbench) (events/s)
 
-| Runtime | median | p95 | stddev | vs stock |
-|---|---|---|---|---|
-| stock runc (ctr) | 1,637 | 1,637 | 0.30 | 100% of stock |
-| gVisor | 1,610 | 1,610 | 0.07 | 98% of stock |
-| Docker default | 1,637 | 1,637 | 0.14 | 100% of stock |
+| Runtime | Launcher | median | p95 | stddev | vs enforced |
+|---|---|---|---|---|---|
+| hardened enforced (bundle) | runc bundle | 1,635 | 1,636 | 1.21 | — |
+| stock runc (ctr) | containerd/ctr | 1,636 | 1,637 | 0.99 | 100% of enforced |
+| gVisor (docker+runsc) | docker | 1,602 | 1,609 | 5.40 | 98% of enforced |
+| Docker default | docker | 1,636 | 1,637 | 1.22 | 100% of enforced |
 
 
-### Memory throughput (sysbench) (MiB/s)
+### Memory (sysbench) (MiB/s)
 
-| Runtime | median | p95 | stddev | vs stock |
-|---|---|---|---|---|
-| stock runc (ctr) | 6,158 | 6,162 | 4.02 | 100% of stock |
-| gVisor | 1,667 | 1,677 | 10.43 | 27% of stock |
-| Docker default | 6,143 | 6,169 | 28.43 | 100% of stock |
+| Runtime | Launcher | median | p95 | stddev | vs enforced |
+|---|---|---|---|---|---|
+| hardened enforced (bundle) | runc bundle | 6,286,346 | 6,311,036 | 41,989 | — |
+| stock runc (ctr) | containerd/ctr | 6,285,693 | 6,313,693 | 51,904 | 100% of enforced |
+| gVisor (docker+runsc) | docker | 1,719,072 | 1,762,526 | 22,328 | 27% of enforced |
+| Docker default | docker | 6,288,487 | 6,309,098 | 45,875 | 100% of enforced |
 
 
 ### Network (iperf3 loopback) (Gbit/s)
 
-| Runtime | median | p95 | stddev | vs stock |
+| Runtime | Launcher | median | p95 | stddev | vs enforced |
+|---|---|---|---|---|---|
+| hardened enforced (bundle) | runc bundle | 31.60 | 31.86 | 0.24 | — |
+| stock runc (ctr) | containerd/ctr | 31.50 | 32.10 | 0.33 | 100% of enforced |
+| gVisor (docker+runsc) | docker | 23.40 | 24.95 | 0.66 | 74% of enforced |
+| Docker default | docker | 31.80 | 32.20 | 0.37 | 101% of enforced |
+
+
+### Redis SET (req/s)
+
+| Runtime | Launcher | median | p95 | stddev | vs enforced |
+|---|---|---|---|---|---|
+| hardened enforced (bundle) | runc bundle | 62,162 | 62,969 | 799.96 | — |
+| stock runc (ctr) | containerd/ctr | 64,037 | 64,894 | 678.84 | 103% of enforced |
+| gVisor (docker+runsc) | docker | 17,636 | 17,765 | 83.00 | 28% of enforced |
+| Docker default | docker | 62,089 | 63,160 | 718.84 | 100% of enforced |
+
+
+### Redis GET (req/s)
+
+| Runtime | Launcher | median | p95 | stddev | vs enforced |
+|---|---|---|---|---|---|
+| hardened enforced (bundle) | runc bundle | 62,224 | 63,335 | 934.06 | — |
+| stock runc (ctr) | containerd/ctr | 63,959 | 65,097 | 709.19 | 103% of enforced |
+| gVisor (docker+runsc) | docker | 17,594 | 17,727 | 100.34 | 28% of enforced |
+| Docker default | docker | 62,050 | 63,206 | 751.22 | 100% of enforced |
+
+## Cold-Start Wall Time (first measured rep, ms)
+
+| Workload | hardened enforced (bundle) | stock runc (ctr) | gVisor (docker+runsc) | Docker default |
 |---|---|---|---|---|
-| stock runc (ctr) | 31.94 | 32.23 | 0.21 | 100% of stock |
-| gVisor | 22.39 | 23.04 | 0.39 | 70% of stock |
-| Docker default | 31.94 | 32.36 | 0.23 | 100% of stock |
-
-
-### redis-benchmark SET (req/s)
-
-| Runtime | median | p95 | stddev | vs stock |
-|---|---|---|---|---|
-| stock runc (ctr) | 65,862 | 66,757 | 1,515 | 100% of stock |
-| gVisor | 17,422 | 17,767 | 201.47 | 26% of stock |
-| Docker default | 63,967 | 64,929 | 2,266 | 97% of stock |
-
-
-### redis-benchmark GET (req/s)
-
-| Runtime | median | p95 | stddev | vs stock |
-|---|---|---|---|---|
-| stock runc (ctr) | 62,632 | 64,281 | 1,890 | 100% of stock |
-| gVisor | 17,564 | 17,664 | 80.63 | 28% of stock |
-| Docker default | 61,593 | 65,119 | 3,026 | 98% of stock |
-
-
-## Enforcement-mode overhead
-
-- Workload: `synthetic`
-- One-time scan (profile generation) cost: **3441 ms**
-- Generated seccomp allowed syscalls: **56**
-- Functional preserved (raw == enforced output): **True**
-- raw median: 469.00 ms; enforced median: 506.00 ms
-- **Steady-state enforcement overhead: 7.89%**
+| CPU (sysbench) | 10089 | 10183 | 10597 | 10527 |
+| Memory (sysbench) | 418 | 536 | 1787 | 974 |
+| Network (iperf3 loopback) | 32090 | 32189 | 32552 | 32417 |
+| Redis SET | 17548 | 16678 | 57987 | 17693 |
+| Redis GET | 17548 | 16678 | 57987 | 17693 |
 
 
 ## Plots
 
-![plots/Startup_latency.png](plots/Startup_latency.png)
-
 ![plots/CPU__sysbench_.png](plots/CPU__sysbench_.png)
 
-![plots/Memory_throughput__sysbench_.png](plots/Memory_throughput__sysbench_.png)
+![plots/Memory__sysbench_.png](plots/Memory__sysbench_.png)
 
 ![plots/Network__iperf3_loopback_.png](plots/Network__iperf3_loopback_.png)
 
-![plots/redis_benchmark_SET.png](plots/redis_benchmark_SET.png)
+![plots/Redis_SET.png](plots/Redis_SET.png)
 
-![plots/redis_benchmark_GET.png](plots/redis_benchmark_GET.png)
+![plots/Redis_GET.png](plots/Redis_GET.png)
 
