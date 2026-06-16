@@ -21,9 +21,11 @@ run_perf_suite() {
     local metrics=("${requested[@]}")
     [[ ${#metrics[@]} -eq 0 ]] && metrics=("${WORKLOAD_IDS[@]}")
 
+    # Stabilize CPU frequency and record host context for the thesis appendix.
     pin_cpu_governor >/dev/null || true
     capture_host_metadata "$out_dir/host-metadata.txt"
 
+    # Drop runtimes that failed verify/smoke (e.g. docker down, profiles missing).
     local active=()
     local alias
     for alias in $RUNTIMES; do

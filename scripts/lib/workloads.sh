@@ -37,6 +37,8 @@ workload_command() {
     esac
 }
 
+# --- Profile layout (profiles/<workload>/{raw,enforced,rootfs,manifest.yaml}) ---
+
 workload_profile_dir() {
     echo "$PROFILES_DIR/$1"
 }
@@ -53,6 +55,8 @@ workload_rootfs_abs() {
     (cd "$dir" && pwd)
 }
 
+
+# --- Result schema (metric name, JSON filename, unit, parser) ---
 
 workload_metric_file() {
     case "$1" in

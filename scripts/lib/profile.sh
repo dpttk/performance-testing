@@ -27,11 +27,13 @@ profile_generate_workload() {
     local rootfs
     rootfs="$(workload_rootfs_abs "$wl")"
 
+    # 1. Bootstrap OCI spec in the workload profile directory.
     (
         cd "$base"
         "$RUNC_HARDENED_BIN" spec >/dev/null
     )
 
+    # 2. Wire workload command and non-root scan user into the spec.
     python3 - "$base/config.json" "$SCAN_UID" "$SCAN_GID" "$cmd" <<'PY'
 import json, sys
 cfg, uid, gid, cmd = sys.argv[1], int(sys.argv[2]), int(sys.argv[3]), sys.argv[4]
@@ -52,6 +54,7 @@ PY
 
     cp "$base/config.json" "$base/config.raw.json"
 
+    # 3. Run hardened runc --security-scan to emit generated/ (seccomp, AppArmor, caps).
     local scan_start scan_end scan_ms scan_rc=0
     scan_start="$(now_ms)"
     ( cd "$base" && "$RUNC_HARDENED_BIN" run --security-scan "scan-${wl}-$$" ) || scan_rc=$?
@@ -59,6 +62,7 @@ PY
     scan_ms=$((scan_end - scan_start))
     [[ "$scan_rc" -eq 0 ]] || error "Security scan failed for workload '$wl' (rc=$scan_rc)"
 
+    # 4. Split into raw (baseline) and enforced (post-scan) bundle configs.
     mkdir -p "$base/raw" "$base/enforced"
     cp "$base/config.raw.json" "$base/raw/config.json"
     cp "$base/config.json" "$base/enforced/config.json"
@@ -84,6 +88,8 @@ PY
     info "Profile generated: $base/manifest.yaml (scan_ms=$scan_ms)"
 }
 
+# iperf3 needs unrestricted socket(2); the scan may emit AF-filtered groups that
+# block loopback server/client pairs inside one container namespace.
 profile_patch_seccomp() {
     local wl="$1"
     [[ "$wl" == "network-iperf" ]] || return 0
@@ -106,6 +112,7 @@ PY
     cp "$sec" "$PROFILES_DIR/$wl/generated/seccomp.json" 2>/dev/null || true
 }
 
+# Append scan-missed execute/network rules so functional checks pass under AppArmor.
 profile_patch_apparmor() {
     local wl="$1"
     local aa="$PROFILES_DIR/$wl/enforced/generated/apparmor.profile"
@@ -142,6 +149,7 @@ PY
     done
 }
 
+# Confirm raw and enforced bundles both complete the workload and emit parseable output.
 profile_functional_check_workload() {
     local wl="$1"
     local base raw_out enf_out raw_fp enf_fp
@@ -158,6 +166,7 @@ profile_functional_check_workload() {
     info "Functional check passed for '$wl'"
 }
 
+# Measure wall-clock overhead of enforcement vs raw on the same hardened binary.
 profile_measure_enforcement_workload() {
     local wl="$1" out_dir="$2"
     local base
@@ -180,6 +189,7 @@ profile_measure_enforcement_workload() {
         for ((i = 1; i <= WARMUP; i++)); do
             run_variant_once "$variant" "enf-warm-${variant}-${i}-$$" || true
         done
+        # Wall-clock per rep; overhead % is derived from raw vs enforced medians.
         for ((i = 1; i <= REPS; i++)); do
             s="$(now_ms)"
             if run_variant_once "$variant" "enf-${variant}-${i}-$$"; then
@@ -237,6 +247,7 @@ json.dump(doc, open(out, "w"), indent=2)
 PY
 }
 
+# Used by run.sh before benchmarks: ensure committed profiles still work on this host.
 validate_prebuilt_profiles() {
     local wl missing=0
     for wl in "${WORKLOAD_IDS[@]}"; do
@@ -254,6 +265,7 @@ validate_prebuilt_profiles() {
 
 aggregate_enforcement_results() {
     local out_dir="$1"
+    # Merge per-workload enforcement-*.json into a single enforcement.json summary.
     python3 - "$out_dir" "${WORKLOAD_IDS[@]}" <<'PY'
 import json, os, sys
 out_dir, *workloads = sys.argv[1:]

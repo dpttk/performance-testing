@@ -19,6 +19,7 @@ HARD_SRC="${HARDENED_RUNC_SRC:-$BUILD_DIR/runc-hardened}"
 : "${RUNC_STOCK_REF:=${RUNC_BASE_REF}}"
 : "${HARDENED_RUNC_REF:=main}"
 
+# seccomp + apparmor tags match what the hardened fork expects at runtime.
 build_runc() {
     local src_dir="$1"
     local out_bin="$2"
@@ -60,6 +61,7 @@ rebuild_hardened() {
     build_runc "$HARD_SRC" "$RUNC_HARDENED_BIN"
 }
 
+# Skip rebuild when binaries already exist unless FORCE_REBUILD_RUNTIMES=1.
 if [[ "${FORCE_REBUILD_RUNTIMES:-0}" == "1" ]]; then
     rm -f "$RUNC_STOCK_BIN" "$RUNC_HARDENED_BIN"
 fi

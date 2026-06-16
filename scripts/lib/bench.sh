@@ -9,6 +9,7 @@ source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/bundle.sh"
 
 write_metric_json() {
     local file="$1" metric="$2" unit="$3" desc="$4" pairs="$5" extra="${6:-}"
+    # pairs: tab-separated rows of alias, stats_json, cold_start_ms per runtime.
     python3 - "$file" "$metric" "$unit" "$desc" "$extra" <<PY
 import json, sys
 file, metric, unit, desc, extra = sys.argv[1:6]
@@ -48,6 +49,7 @@ with open(file, "w") as fh:
 PY
 }
 
+# Dispatch to the correct launcher: bundle (stock/proposed) or docker (gvisor/docker).
 run_workload_capture() {
     local alias="$1" wl="$2" name="$3"
     local image cmd
@@ -84,6 +86,7 @@ bench_workload() {
     local alias
     for alias in "${aliases[@]}"; do
         local samples="" cold_ms="" i out_txt v s e
+        # Warmup reps prime caches and JIT; not included in throughput stats.
         for ((i = 1; i <= WARMUP; i++)); do
             run_workload_capture "$alias" "$wl" "warm-${wl}-${alias}-${i}-$$" >/dev/null || true
         done
@@ -91,6 +94,7 @@ bench_workload() {
             s="$(now_ms)"
             out_txt="$(run_workload_capture "$alias" "$wl" "bench-${wl}-${alias}-${i}-$$" || true)"
             e="$(now_ms)"
+            # redis-benchmark reports SET and GET on separate lines; track both.
             if [[ "$wl" == "redis-app" ]]; then
                 v="$(workload_parse_value "$wl" "$out_txt")"
                 local sv gv
@@ -102,6 +106,7 @@ bench_workload() {
                 v="$(workload_parse_value "$wl" "$out_txt")"
                 [[ -n "$v" ]] && samples+="$v"$'\n'
             fi
+            # First measured rep approximates cold-start latency (image already pulled).
             if [[ "$i" -eq 1 ]]; then
                 cold_ms="$((e - s))"
             fi

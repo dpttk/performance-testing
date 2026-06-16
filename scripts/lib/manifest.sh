@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 # Write manifest.yaml after profile generation (no PyYAML dependency).
-
+#
+# Summarizes scan duration, image digest, and enforcement knobs applied to the
+# enforced bundle so reports can cite profile provenance without parsing JSON.
 write_workload_manifest() {
     local wl="$1" scan_ms="$2" digest="$3"
     local base cmd prof out

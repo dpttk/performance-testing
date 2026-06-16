@@ -22,6 +22,7 @@ OUT_DIR="${RUN_DIR:-$(ensure_results_dir "perf-$(date +%Y%m%d-%H%M%S)")}"
 mkdir -p "$OUT_DIR"
 info "Performance results: $OUT_DIR"
 
+# When invoked from run.sh, RUN_DIR is already set to the campaign directory.
 run_perf_suite "$OUT_DIR" "${METRICS[@]}"
 
 info "Performance suite complete: $OUT_DIR"

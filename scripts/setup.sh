@@ -54,6 +54,7 @@ apt-get install -y -qq \
     iproute2 iptables \
     python3
 
+# Runtimes and container engines (order matters: runc binaries before containerd restart).
 "$SCRIPT_DIR/install-go.sh"
 "$SCRIPT_DIR/build-runtimes.sh"
 "$SCRIPT_DIR/install-gvisor.sh"

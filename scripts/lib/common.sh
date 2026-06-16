@@ -83,6 +83,7 @@ ensure_results_dir() {
     echo "$dir"
 }
 
+# Thin wrapper: all ctr traffic uses the benchmark namespace + socket from config.env.
 ctr_cmd() {
     ctr --address "$CONTAINERD_SOCKET" -n "$CONTAINERD_NAMESPACE" "$@"
 }
@@ -175,6 +176,7 @@ runtime_available() {
             fi
             ;;
         bundle)
+            # Bundle backends need prebuilt raw+enforced configs for every workload.
             [[ -x "$RUNC_PROPOSED_BIN" ]] || return 1
             local wl
             for wl in sysbench-cpu sysbench-mem network-iperf redis-app; do

@@ -64,6 +64,7 @@ info "=== [4/4] Aggregate report ==="
 
 cp "$PERF_DIR/config.env" "$RUN_DIR/config.env.used" 2>/dev/null || true
 
+# Full campaigns publish to results/latest/; --quick runs stay in the timestamped dir only.
 if [[ "$QUICK" -eq 0 ]]; then
     LATEST_DIR="$PERF_DIR/results/latest"
     mkdir -p "$LATEST_DIR"

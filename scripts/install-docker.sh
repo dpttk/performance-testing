@@ -26,6 +26,7 @@ if [[ "$DOCKER_REGISTER_EXTRA_RUNTIMES" == "1" ]]; then
     info "Registering runsc and runc-hardened as Docker runtimes..."
     mkdir -p /etc/docker
     local_daemon=/etc/docker/daemon.json
+    # Merge into existing daemon.json so we do not clobber unrelated Docker settings.
     python3 - "$local_daemon" "$RUNSC_BIN" "$RUNC_HARDENED_BIN" <<'PY'
 import json, sys, os
 

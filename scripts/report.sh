@@ -23,4 +23,5 @@ if [[ -z "$DIR" ]]; then
 fi
 [[ -d "$DIR" ]] || error "Not a directory: $DIR"
 
+# report.py reads JSON metrics and writes report.md, summary.csv, and optional plots.
 python3 "$SCRIPT_DIR/report.py" "$DIR" "${EXTRA[@]}"

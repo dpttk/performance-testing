@@ -11,6 +11,7 @@ require_root
 
 "$SCRIPT_DIR/install-containerd.sh"
 
+# ctr is the source of truth for bundle rootfs export; Docker pulls are best-effort.
 pull_one() {
     local ref="$1"
     info "Pulling $ref ..."
@@ -20,6 +21,7 @@ pull_one() {
 pull_one "$BUSYBOX_IMAGE"
 pull_one "$REDIS_IMAGE"
 
+# sysbench/iperf images vary by registry availability; workloads skip gracefully if missing.
 for opt in "$SYSBENCH_IMAGE" "$IPERF_IMAGE"; do
     if ctr_cmd images pull "$opt" >/dev/null 2>&1; then
         info "Pulled optional image: $opt"

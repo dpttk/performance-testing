@@ -9,6 +9,7 @@ source "$SCRIPT_DIR/lib/common.sh"
 
 require_root
 
+# Skip download when go is already on PATH (e.g. from a previous setup run).
 if command -v go >/dev/null 2>&1; then
     info "Go already installed: $(go version)"
     exit 0

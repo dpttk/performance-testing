@@ -22,6 +22,7 @@ for wl in "${TARGETS[@]}"; do
     info "=== Preparing profile for workload: $wl ==="
     profile_generate_workload "$wl"
     profile_functional_check_workload "$wl"
+    # Optional: quantify enforcement wall-clock overhead during profile prep.
     if [[ "${MEASURE_ENFORCEMENT_OVERHEAD:-1}" == "1" ]]; then
         WARMUP="${ENFORCEMENT_WARMUP:-5}" REPS="${ENFORCEMENT_REPS:-30}" \
             profile_measure_enforcement_workload "$wl" "$PROFILES_DIR"

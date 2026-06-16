@@ -9,6 +9,7 @@ source "$SCRIPT_DIR/lib/common.sh"
 
 require_root
 
+# Prefer the snapshot taken during install-containerd.sh over regenerating defaults.
 PRISTINE_BACKUP="$PERF_DIR/config/containerd.config.toml.pristine"
 
 if [[ -f "$PRISTINE_BACKUP" ]]; then

@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # Runtime abstraction layer for benchmark scripts.
 #
-# This module intentionally reuses helpers from common.sh so existing scripts
-# can source a single runtime-oriented entrypoint.
+# Re-exports common.sh (paths, RUNTIMES, ctr/docker helpers, smoke tests) so
+# entrypoint scripts can source a single module instead of common.sh directly.
 
 set -euo pipefail
 

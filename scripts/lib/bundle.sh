@@ -10,6 +10,7 @@ _WORKLOADS_LOADED=1
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/manifest.sh"
 
 # Export and cache rootfs for a workload from its pinned image reference.
+# .export-stamp avoids re-exporting on every bundle run (docker export is slow).
 ensure_workload_rootfs() {
     local wl="$1"
     local image dir
@@ -28,6 +29,9 @@ ensure_workload_rootfs() {
     date -Iseconds >"$dir/.export-stamp"
 }
 
+# Build an ephemeral OCI bundle under profiles/<wl>/runs/<id>/.
+# Copies the prebuilt raw or enforced config, injects argv + absolute rootfs
+# path, and mirrors generated/ (seccomp, AppArmor) when present.
 _bundle_prepare() {
     local wl="$1" variant="$2" id="$3"; shift 3
     local args=("$@")
@@ -40,6 +44,7 @@ _bundle_prepare() {
 
     rm -rf "$probe"
     mkdir -p "$probe"
+    # rootfs must be absolute: hardened runc scans with cwd inside the bundle dir.
     python3 - "$src" "$probe/config.json" "$(workload_rootfs_abs "$wl")" "${args[@]}" <<'PY'
 import json, sys
 src, dst, rootfs = sys.argv[1:4]
@@ -56,13 +61,15 @@ PY
     echo "$probe"
 }
 
+# Always delete via the same binary used for run (stock and proposed share it).
 _bundle_cleanup() {
     local wl="$1" id="$2" probe="$3"
     "$RUNC_PROPOSED_BIN" delete -f "$id" >/dev/null 2>&1 || true
     rm -rf "$probe"
 }
 
-# Run hardened_enforced bundle; args are process argv (e.g. /bin/sh -c "...").
+# Run enforced bundle (seccomp + AppArmor from profiles/<wl>/enforced/).
+# Args become process.argv (e.g. /bin/sh -c "...").
 bundle_run() {
     local wl="$1" id="$2" capture="$3"; shift 3
     local probe out rc
@@ -77,6 +84,8 @@ bundle_run() {
     return "${rc:-0}"
 }
 
+# Same launcher as bundle_run but uses the raw (unprofiled) OCI config.
+# stock vs proposed differ only by which config.json is copied into the bundle.
 profile_bundle_run_raw() {
     local wl="$1" id="$2" capture="$3"; shift 3
     local probe out rc

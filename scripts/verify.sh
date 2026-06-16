@@ -21,6 +21,8 @@ check() {
 }
 
 FAIL=0
+
+# --- Binary and daemon prerequisites ---
 check "stock runc binary" test -x "$RUNC_STOCK_BIN" || FAIL=1
 check "hardened runc binary" test -x "$RUNC_HARDENED_BIN" || FAIL=1
 check "gVisor runsc binary" test -x "$RUNSC_BIN" || FAIL=1
@@ -28,6 +30,7 @@ check "containerd socket" test -S "$CONTAINERD_SOCKET" || FAIL=1
 check "containerd namespace" ctr_cmd namespaces ls || FAIL=1
 check "docker engine" docker_cmd info || warn "docker not available (docker + gVisor will be skipped)"
 
+# --- Host tools for workloads and profile generation ---
 for tool in iperf3 redis-benchmark python3; do
     command -v "$tool" >/dev/null 2>&1 && info "OK  tool $tool" || warn "missing tool $tool"
 done
@@ -40,6 +43,7 @@ else
     warn "missing oci-seccomp-bpf-hook (seccomp profile generation disabled)"
 fi
 
+# --- End-to-end smoke: one rep of sysbench-cpu per enabled runtime ---
 for alias in $RUNTIMES; do
     if ! runtime_available "$alias"; then
         warn "SKIP runtime '$alias' (not available on this host)"
