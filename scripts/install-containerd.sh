@@ -23,6 +23,7 @@ if [[ ! -f "$PRISTINE_BACKUP" ]]; then
 fi
 
 if [[ ! -f "$CONTAINERD_CONFIG" ]] || ! systemctl is-active --quiet containerd 2>/dev/null; then
+    mkdir -p "$(dirname "$CONTAINERD_CONFIG")"
     cp "$PRISTINE_BACKUP" "$CONTAINERD_CONFIG"
     info "Installed pristine containerd config at $CONTAINERD_CONFIG"
 fi

@@ -25,7 +25,7 @@ profile_generate_workload() {
 
     ensure_workload_rootfs "$wl"
     local rootfs
-    rootfs="$(workload_rootfs_dir "$wl")"
+    rootfs="$(workload_rootfs_abs "$wl")"
 
     (
         cd "$base"

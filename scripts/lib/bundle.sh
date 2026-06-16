@@ -40,7 +40,7 @@ _bundle_prepare() {
 
     rm -rf "$probe"
     mkdir -p "$probe"
-    python3 - "$src" "$probe/config.json" "$(workload_rootfs_dir "$wl")" "${args[@]}" <<'PY'
+    python3 - "$src" "$probe/config.json" "$(workload_rootfs_abs "$wl")" "${args[@]}" <<'PY'
 import json, sys
 src, dst, rootfs = sys.argv[1:4]
 args = sys.argv[4:]

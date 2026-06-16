@@ -45,6 +45,15 @@ workload_rootfs_dir() {
     echo "$(workload_profile_dir "$1")/rootfs"
 }
 
+# Absolute path required in OCI config (scan runs with cwd inside the bundle).
+workload_rootfs_abs() {
+    local dir
+    dir="$(workload_rootfs_dir "$1")"
+    mkdir -p "$dir"
+    (cd "$dir" && pwd)
+}
+
+
 workload_metric_file() {
     case "$1" in
         sysbench-cpu) echo "sysbench-cpu.json" ;;

@@ -1,0 +1,47 @@
+#cloud-config
+hostname: perf-bench
+manage_etc_hosts: true
+package_update: true
+package_upgrade: false
+
+users:
+  - name: benchmark
+    gecos: Benchmark User
+    sudo: ALL=(ALL) NOPASSWD:ALL
+    shell: /bin/bash
+    lock_passwd: false
+    plain_text_passwd: benchmark
+    ssh_authorized_keys:
+      - ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQC9KS8f21Wt3Z8Fgunu49w90dtdu2w9x46k16MuQhD5al9c0QhYgbEPj1hcRs5O/ANdmIse4tWLQeKki3EM7kxJyij+kCdNHmMOoP5h7DRZ3tkAF9wvF1x7bmuI1ju4YtiYifSISN9jR37FAVkQM2TWVa7mpd2atogvSpHJEBjaA8P+kzoFVyZUq4mAjp+Wq+B4zgSebywrdRMq6/CvuBZDZTcx+l9NVIfWZNJQpU8GAQ9mrMOWk/yecI7dfRcu5sJT5xBDAYa/6AHGV+A9RfpMjcSfkS3jzweUX1VOiNsEjFNadS1j6/YOcXbOLWoRmdpcQlc6QqQVNUEmsp/IB78h4zw/S+6MpbCIk+TWXKtdj4LTOUnkMSxaOfjyuuPEPql0s8iGXQGKQ6shyW9LFF4k7R6izt68njUA8D5NCHP8H5C1grtDNy/mwBV6YmaiBgn31O75tAmiLkL9Aj/q/zbQ8ueRSRkh9rGndREjGvsr/Z46gBc07jwl8b9OEcAqr+U= plato@bmo
+
+packages:
+  - git
+  - curl
+  - ca-certificates
+
+write_files:
+  - path: /usr/local/sbin/run-benchmark-suite.sh
+    permissions: "0755"
+    content: |
+      #!/bin/bash
+      set -euo pipefail
+      LOG=/var/log/benchmark-suite.log
+      exec > >(tee -a "$LOG") 2>&1
+      echo "=== benchmark suite start $(date -Is) ==="
+      REPO=/opt/performance-evaluation
+      if [[ ! -d "$REPO/.git" ]]; then
+        git clone https://github.com/dpttk/performance-testing.git "$REPO"
+      else
+        git -C "$REPO" pull --ff-only || true
+      fi
+      cd "$REPO"
+      cp -n config.env.example config.env || true
+      ./scripts/setup.sh
+      ./scripts/prepare-profiles.sh
+      ./scripts/run.sh
+      echo "=== benchmark suite done $(date -Is) ==="
+
+runcmd:
+  - systemctl enable --now ssh
+  - touch /var/log/benchmark-suite.log
+  - echo "cloud-init complete" > /var/log/cloud-init-benchmark.done
