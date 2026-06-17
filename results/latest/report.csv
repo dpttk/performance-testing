@@ -1,21 +1,21 @@
-metric,unit,runtime,launcher,median,p95,stddev
-CPU (sysbench),events/s,hardened_enforced,runc bundle,"1,635","1,636",1.21
-CPU (sysbench),events/s,stock,containerd/ctr,"1,636","1,637",0.99
-CPU (sysbench),events/s,gvisor,docker,"1,602","1,609",5.40
-CPU (sysbench),events/s,docker,docker,"1,636","1,637",1.22
-Memory (sysbench),MiB/s,hardened_enforced,runc bundle,"6,286,346","6,311,036","41,989"
-Memory (sysbench),MiB/s,stock,containerd/ctr,"6,285,693","6,313,693","51,904"
-Memory (sysbench),MiB/s,gvisor,docker,"1,719,072","1,762,526","22,328"
-Memory (sysbench),MiB/s,docker,docker,"6,288,487","6,309,098","45,875"
-Network (iperf3 loopback),Gbit/s,hardened_enforced,runc bundle,31.60,31.86,0.24
-Network (iperf3 loopback),Gbit/s,stock,containerd/ctr,31.50,32.10,0.33
-Network (iperf3 loopback),Gbit/s,gvisor,docker,23.40,24.95,0.66
-Network (iperf3 loopback),Gbit/s,docker,docker,31.80,32.20,0.37
-Redis SET,req/s,hardened_enforced,runc bundle,"62,162","62,969",799.96
-Redis SET,req/s,stock,containerd/ctr,"64,037","64,894",678.84
-Redis SET,req/s,gvisor,docker,"17,636","17,765",83.00
-Redis SET,req/s,docker,docker,"62,089","63,160",718.84
-Redis GET,req/s,hardened_enforced,runc bundle,"62,224","63,335",934.06
-Redis GET,req/s,stock,containerd/ctr,"63,959","65,097",709.19
-Redis GET,req/s,gvisor,docker,"17,594","17,727",100.34
-Redis GET,req/s,docker,docker,"62,050","63,206",751.22
+metric,unit,runtime,launcher,median,p95,stddev,overhead_vs_baseline
+CPU (sysbench),events/s,stock,OCI bundle,"2,332","2,386",72.81,baseline
+CPU (sysbench),events/s,proposed,OCI bundle,"2,346","2,388",55.92,-0.62%
+CPU (sysbench),events/s,docker,Docker,"2,342","2,383",59.17,baseline
+CPU (sysbench),events/s,gvisor,Docker,"2,282","2,359",65.56,+2.57%
+Memory (sysbench),MiB/s,stock,OCI bundle,"6,105,132","6,241,565","88,736",baseline
+Memory (sysbench),MiB/s,proposed,OCI bundle,"6,059,380","6,128,915","74,111",+0.75%
+Memory (sysbench),MiB/s,docker,Docker,"6,360,881","6,473,053","116,844",baseline
+Memory (sysbench),MiB/s,gvisor,Docker,"1,688,603","1,717,822","21,166",+73.45%
+Network (iperf3 loopback),Gbit/s,stock,OCI bundle,55.20,57.50,2.32,baseline
+Network (iperf3 loopback),Gbit/s,proposed,OCI bundle,55.85,57.45,2.65,-1.18%
+Network (iperf3 loopback),Gbit/s,docker,Docker,55.65,57.45,2.29,baseline
+Network (iperf3 loopback),Gbit/s,gvisor,Docker,38.50,42.38,2.57,+30.82%
+Redis SET,req/s,stock,OCI bundle,"89,358","90,727","2,550",baseline
+Redis SET,req/s,proposed,OCI bundle,"84,324","88,028","2,701",+5.63%
+Redis SET,req/s,docker,Docker,"87,100","88,139","2,728",baseline
+Redis SET,req/s,gvisor,Docker,"30,844","31,177",491.58,+64.59%
+Redis GET,req/s,stock,OCI bundle,"89,542","90,707","2,587",baseline
+Redis GET,req/s,proposed,OCI bundle,"84,587","87,993","2,738",+5.53%
+Redis GET,req/s,docker,Docker,"87,176","88,464","2,668",baseline
+Redis GET,req/s,gvisor,Docker,"30,762","31,074",494.27,+64.71%

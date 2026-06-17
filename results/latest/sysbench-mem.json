@@ -5,54 +5,54 @@
   "results": {
     "stock": {
       "count": 50,
-      "min": 6123456.39,
-      "median": 6285693.025,
-      "mean": 6268202.848,
-      "p95": 6313693.439,
-      "p99": 6323778.189,
-      "max": 6325857.68,
-      "stddev": 51904.05
+      "min": 5768697.64,
+      "median": 6105131.97,
+      "mean": 6090960.738,
+      "p95": 6241565.366,
+      "p99": 6270504.835,
+      "max": 6280987.14,
+      "stddev": 88736.065
+    },
+    "proposed": {
+      "count": 50,
+      "min": 5837306.88,
+      "median": 6059379.66,
+      "mean": 6051088.459,
+      "p95": 6128915.36,
+      "p99": 6196431.924,
+      "max": 6200509.65,
+      "stddev": 74111.151
     },
     "gvisor": {
       "count": 50,
-      "min": 1687881.91,
-      "median": 1719072.215,
-      "mean": 1723081.487,
-      "p95": 1762526.049,
-      "p99": 1776762.557,
-      "max": 1787673.5,
-      "stddev": 22328.484
+      "min": 1651320.4,
+      "median": 1688603.36,
+      "mean": 1687392.159,
+      "p95": 1717822.35,
+      "p99": 1732722.416,
+      "max": 1740058.26,
+      "stddev": 21166.327
     },
     "docker": {
       "count": 50,
-      "min": 6144251.94,
-      "median": 6288486.755,
-      "mean": 6272115.688,
-      "p95": 6309098.126,
-      "p99": 6318366.725,
-      "max": 6319935.97,
-      "stddev": 45875.044
-    },
-    "hardened_enforced": {
-      "count": 50,
-      "min": 6140319.99,
-      "median": 6286345.63,
-      "mean": 6271275.526,
-      "p95": 6311035.918,
-      "p99": 6312046.038,
-      "max": 6312305.91,
-      "stddev": 41989.232
+      "min": 5890776.61,
+      "median": 6360881.375,
+      "mean": 6328485.857,
+      "p95": 6473053.358,
+      "p99": 6505658.742,
+      "max": 6505936.45,
+      "stddev": 116843.549
     }
   },
   "cold_start_ms": {
-    "stock": 536,
-    "gvisor": 1787,
-    "docker": 974,
-    "hardened_enforced": 418
+    "stock": 409,
+    "proposed": 411,
+    "gvisor": 1639,
+    "docker": 542
   },
   "meta": {
     "workload": "sysbench-mem",
     "image": "docker.io/severalnines/sysbench:latest",
-    "profile": "/home/dpttk/performance-evaluation/profiles/sysbench-mem"
+    "profile": "./profiles/sysbench-mem"
   }
 }

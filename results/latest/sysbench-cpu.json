@@ -5,54 +5,54 @@
   "results": {
     "stock": {
       "count": 50,
-      "min": 1629.81,
-      "median": 1635.74,
-      "mean": 1635.628,
-      "p95": 1636.547,
-      "p99": 1636.686,
-      "max": 1636.75,
-      "stddev": 0.988
+      "min": 2145.71,
+      "median": 2331.505,
+      "mean": 2309.043,
+      "p95": 2385.793,
+      "p99": 2388.945,
+      "max": 2389.19,
+      "stddev": 72.814
+    },
+    "proposed": {
+      "count": 50,
+      "min": 2223.06,
+      "median": 2345.865,
+      "mean": 2328.15,
+      "p95": 2387.767,
+      "p99": 2403.552,
+      "max": 2411.25,
+      "stddev": 55.922
     },
     "gvisor": {
       "count": 50,
-      "min": 1593.32,
-      "median": 1602.285,
-      "mean": 1602.175,
-      "p95": 1608.53,
-      "p99": 1609.479,
-      "max": 1609.92,
-      "stddev": 5.399
+      "min": 2154.3,
+      "median": 2282.125,
+      "mean": 2278.756,
+      "p95": 2359.193,
+      "p99": 2362.56,
+      "max": 2363.52,
+      "stddev": 65.562
     },
     "docker": {
       "count": 50,
-      "min": 1629.93,
-      "median": 1635.705,
-      "mean": 1635.514,
-      "p95": 1636.832,
-      "p99": 1637.09,
-      "max": 1637.11,
-      "stddev": 1.222
-    },
-    "hardened_enforced": {
-      "count": 50,
-      "min": 1629.12,
-      "median": 1635.11,
-      "mean": 1634.879,
-      "p95": 1635.707,
-      "p99": 1636.071,
-      "max": 1636.1,
-      "stddev": 1.205
+      "min": 2196.29,
+      "median": 2342.405,
+      "mean": 2318.845,
+      "p95": 2382.631,
+      "p99": 2386.27,
+      "max": 2388.48,
+      "stddev": 59.17
     }
   },
   "cold_start_ms": {
-    "stock": 10183,
-    "gvisor": 10597,
-    "docker": 10527,
-    "hardened_enforced": 10089
+    "stock": 10069,
+    "proposed": 10078,
+    "gvisor": 10369,
+    "docker": 10230
   },
   "meta": {
     "workload": "sysbench-cpu",
     "image": "docker.io/severalnines/sysbench:latest",
-    "profile": "/home/dpttk/performance-evaluation/profiles/sysbench-cpu"
+    "profile": "./profiles/sysbench-cpu"
   }
 }

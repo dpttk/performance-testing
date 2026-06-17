@@ -1,12 +1,12 @@
-host=performance-testing
-date=2026-06-15T22:56:04+00:00
+host=perf-bench
+date=2026-06-16T19:40:07+00:00
 kernel=6.8.0-124-generic
 arch=x86_64
-cpu_model=AMD EPYC-Genoa Processor
+cpu_model=AMD Ryzen 7 7700 8-Core Processor
 cpu_count=4
-virt=kvm
+virt=oracle
 kvm_present=no
-mem_total=8130784 kB
+mem_total=8129808 kB
 cgroup=cgroup2fs
 cpu_governor=n/a
 turbo_disabled=n/a
@@ -14,13 +14,13 @@ os=Ubuntu 24.04.4 LTS
 containerd=containerd github.com/containerd/containerd/v2 2.2.1 
 docker=Docker version 29.1.3, build 29.1.3-0ubuntu3~24.04.2
 runc_stock=runc version 1.5.0-rc.1+dev
-runc_hardened=runc version 1.4.0-rc.1+dev
-runsc=runsc version release-20260601.0
+runc_proposed=runc version 1.4.0-rc.1+dev
+runsc=runsc version release-20250319.0
 kata=missing
-runtimes_under_test=stock gvisor docker hardened_enforced
+runtimes_under_test=stock proposed gvisor docker
 reps=50 warmup=10
-profiles_dir=/home/dpttk/performance-evaluation/profiles
-launcher_stock=ctr+/usr/local/sbin/runc-stock
-launcher_hardened_enforced=/usr/local/sbin/runc-hardened run --bundle
+profiles_dir=./profiles
+launcher_stock=/usr/local/sbin/runc-hardened run --bundle
+launcher_proposed=/usr/local/sbin/runc-hardened run --bundle
 launcher_gvisor=docker(--runtime=runsc)
 launcher_docker=docker(default)

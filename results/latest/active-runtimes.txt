@@ -1,1 +1,1 @@
-stock gvisor docker hardened_enforced
+stock proposed gvisor docker

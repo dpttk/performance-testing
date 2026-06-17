@@ -5,54 +5,54 @@
   "results": {
     "stock": {
       "count": 50,
-      "min": 62546.91,
-      "median": 63959.075,
-      "mean": 64014.422,
-      "p95": 65096.538,
-      "p99": 65425.15,
-      "max": 65496.46,
-      "stddev": 709.191
+      "min": 82904.99,
+      "median": 89541.55,
+      "mean": 88162.474,
+      "p95": 90707.083,
+      "p99": 90818.435,
+      "max": 90826.52,
+      "stddev": 2586.729
+    },
+    "proposed": {
+      "count": 50,
+      "min": 81129.32,
+      "median": 84587.14,
+      "mean": 84715.75,
+      "p95": 87993.331,
+      "p99": 88277.8,
+      "max": 88323.62,
+      "stddev": 2737.71
     },
     "gvisor": {
       "count": 50,
-      "min": 17162.08,
-      "median": 17593.555,
-      "mean": 17587.929,
-      "p95": 17727.07,
-      "p99": 17749.921,
-      "max": 17760.73,
-      "stddev": 100.341
+      "min": 29270.58,
+      "median": 30761.67,
+      "mean": 30549.292,
+      "p95": 31074.24,
+      "p99": 31192.7,
+      "max": 31246.09,
+      "stddev": 494.271
     },
     "docker": {
       "count": 50,
-      "min": 60248.22,
-      "median": 62050.14,
-      "mean": 61985.438,
-      "p95": 63206.275,
-      "p99": 63347.43,
-      "max": 63355.29,
-      "stddev": 751.222
-    },
-    "hardened_enforced": {
-      "count": 50,
-      "min": 59701.49,
-      "median": 62223.88,
-      "mean": 62078.176,
-      "p95": 63334.925,
-      "p99": 63508.518,
-      "max": 63524.33,
-      "stddev": 934.059
+      "min": 80879.97,
+      "median": 87176.36,
+      "mean": 85804.103,
+      "p95": 88463.532,
+      "p99": 90332.882,
+      "max": 91962.48,
+      "stddev": 2668.122
     }
   },
   "cold_start_ms": {
-    "stock": 16678,
-    "gvisor": 57987,
-    "docker": 17693,
-    "hardened_enforced": 17548
+    "stock": 12208,
+    "proposed": 13138,
+    "gvisor": 34484,
+    "docker": 12710
   },
   "meta": {
     "workload": "redis-app",
     "image": "docker.io/library/redis:7-alpine",
-    "profile": "/home/dpttk/performance-evaluation/profiles/redis-app"
+    "profile": "./profiles/redis-app"
   }
 }
